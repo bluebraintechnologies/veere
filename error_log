@@ -1,0 +1,1 @@
+[22-Aug-2022 15:41:20 UTC] PHP Fatal error:  Composer detected issues in your platform: Your Composer dependencies require a PHP version ">= 7.4.0". You are running 7.2.34. in /home/veeepjka/demo.veeere.com/cgi-bin/vendor/composer/platform_check.php on line 24
