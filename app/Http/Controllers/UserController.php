@@ -16,7 +16,6 @@ use Illuminate\Support\Str;
 use Mail;
 use Cache;
 use Inertia\Inertia;
-
 class UserController extends Controller
 {
     protected $data = [];
@@ -32,13 +31,16 @@ class UserController extends Controller
     public function index()
     {
         if(Auth::user()->type == 'customer'){
-             $this->data['orders'] =Transaction::select('id', 'payment_status', 'status', 'invoice_no', 'final_total', 'shipping_status')->with('sell_lines')->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('shipping_status', '!=', 'delivered')->get();
+            $this->data['orders'] =Transaction::select('id', 'payment_status', 'status', 'invoice_no', 'final_total', 'shipping_status')->with('sell_lines')->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('shipping_status', '!=', 'delivered')->get();
             $this->data['synop'] = [
                 'orders' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->count(),
                 'saving' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->sum('discount_amount'),
                 'offers' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->where('discount_amount', '>', 0)->count(),
                 'wishlists' => Wishlist::where('user_id', Auth::user()->id)->count(),
             ];
+            if (Auth::check()) {
+                $this->data['isUserLogged'] = 1;
+            }
             return Inertia::render('User/Dashboard', $this->data);
         }
         else {

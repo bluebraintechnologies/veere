@@ -11,16 +11,49 @@ export default {
     data() {
         return {
             gridView: true,
+            order_by:1,
+            newProducts : [],
+            selectedWeights : [],
+            loader : false
         };
     },
     props: {
         products: [Array, Object],
+        weights : [Array, Object],
     },
     computed: {
         ...mapGetters(["navItems"]),
         select_category() {
             return this.$page.props.category;
         },
+        sorted_products(){
+            this.loader = true;
+            this.newProducts = this.products
+            if(this.selectedWeights.length > 0){
+                let newProducts = this.newProducts.filter((ele) => {
+                    if(this.selectedWeights.indexOf(parseFloat(ele.weight)) >= 0){
+                        return ele
+                    }
+                })
+                this.newProducts = newProducts;
+            }
+            var pro = [];
+            if(Number(this.order_by) == 1){
+                pro = this.newProducts.sort((a,b) => Number(a.new_tag) < Number(b.new_tag) ? 1 : -1)
+            } else if(Number(this.order_by) == 2){
+                pro = this.newProducts.sort((a,b) => a.name > b.name ? 1 : -1)
+            } else if(Number(this.order_by) == 3){
+                pro = this.newProducts.sort((a,b) => a.name < b.name ? 1 : -1)
+            } else if(Number(this.order_by) == 4){
+                pro = this.newProducts.sort((a,b) => parseFloat(a.price) > parseFloat(b.price) ? 1 : -1)
+            } else if(Number(this.order_by) == 5){
+                pro = this.newProducts.sort((a,b) => parseFloat(a.price) < parseFloat(b.price) ? 1 : -1)
+            }
+            this.loader = false;
+            return pro;
+        }
+    },
+    methods: {
     },
     setup() {
         return {};
@@ -70,9 +103,8 @@ export default {
                             <div class="col-md-6 ec-sort-select">
                                 <span class="sort-by">Sort by</span>
                                 <div class="ec-select-inner">
-                                    <select name="ec-select" id="ec-select">
-                                        <option selected disabled>Position</option>
-                                        <option value="1">Relevance</option>
+                                    <select name="ec-select" id="ec-select" v-model="order_by">                                        
+                                        <option value="1" selected>Newest First</option>
                                         <option value="2">Name, A to Z</option>
                                         <option value="3">Name, Z to A</option>
                                         <option value="4">Price, low to high</option>
@@ -82,14 +114,17 @@ export default {
                             </div>
                         </div>
                         <div class="shop-pro-content">
-                            <div class="shop-pro-inner" :class="{'list-view': !gridView}">
+                            <div class="shop-pro-inner" v-if="loader">
+                                <img src="/images/loader.gif" />
+                            </div>
+                            <div class="shop-pro-inner" :class="{'list-view': !gridView}" v-else>
                                 <div class="row">
-                                    <div class="col-lg-3 col-md-4 col-sm-6 col-xs-6 ec-product-content" v-for="product in products" :key="product.id">
+                                    <div class="col-lg-3 col-md-4 col-sm-6 col-xs-6 ec-product-content" v-for="product in sorted_products" :key="product.id">
                                         <single-product :product="product"></single-product>
                                     </div>
                                 </div>
                             </div>
-                            <div class="ec-pro-pagination">
+                            <!-- <div class="ec-pro-pagination">
                                 <span>Showing 1-12 of 21 item(s)</span>
                                 <ul class="ec-pro-pagination-inner">
                                     <li><a class="active" href="#">1</a></li>
@@ -99,7 +134,7 @@ export default {
                                     <li><a href="#">5</a></li>
                                     <li><a class="next" href="#">Next <i class="ecicon eci-angle-right"></i></a></li>
                                 </ul>
-                            </div>
+                            </div> -->
                         </div>
                     </div>
                     <div class="ec-shop-leftside col-lg-3 col-md-12 order-lg-first order-md-last">
@@ -116,34 +151,37 @@ export default {
                                         <ul>
                                             <li>
                                                 <div class="ec-sidebar-block-item">
-                                                    <input type="checkbox" checked /> <a href="#">clothes</a><span
+                                                    <input readonly type="checkbox" checked /> <a href="#">{{ (select_category)?select_category.name:'-' }}</a><span
                                                         class="checked"></span>
                                                 </div>
                                             </li>
                                             
-                                            <li>
+                                            <!-- <li>
                                                 <div class="ec-sidebar-block-item ec-more-toggle">
                                                     <span class="checked"></span><span id="ec-more-toggle">More
                                                         Categories</span>
                                                 </div>
-                                            </li>
+                                            </li> -->
 
                                         </ul>
                                     </div>
                                 </div>
                                 <div class="ec-sidebar-block">
                                     <div class="ec-sb-title">
-                                        <h3 class="ec-sidebar-title">Size</h3>
+                                        <h3 class="ec-sidebar-title">Weight</h3>
                                     </div>
                                     <div class="ec-sb-block-content">
                                         <ul>
-                                            <li>
+                                            <li v-for="(weight, index) in weights" :key="index">
                                                 <div class="ec-sidebar-block-item">
-                                                    <input type="checkbox" value="" checked /><a href="#">S</a><span
-                                                        class="checked"></span>
+                                                    <input type="checkbox" v-model="selectedWeights" :value="weight" :id="'weight-' + index" />
+                                                    <label class="ml-5 mb-0" href="#" :for="'weight-' + index" >
+                                                        {{ (weight < 1) ? parseFloat(weight)*1000 + 'gm' : weight + 'KG' }}
+                                                    </label>
+                                                    <span class="checked"></span>
                                                 </div>
                                             </li>
-                                            <li>
+                                            <!-- <li>
                                                 <div class="ec-sidebar-block-item">
                                                     <input type="checkbox" value="" /><a href="#">M</a><span
                                                         class="checked"></span>
@@ -166,12 +204,12 @@ export default {
                                                     <input type="checkbox" value="" /><a href="#">XXL</a><span
                                                         class="checked"></span>
                                                 </div>
-                                            </li>
+                                            </li> -->
                                         </ul>
                                     </div>
                                 </div>
                                 <!-- Sidebar Color item -->
-                                <div class="ec-sidebar-block ec-sidebar-block-clr">
+                                <!-- <div class="ec-sidebar-block ec-sidebar-block-clr">
                                     <div class="ec-sb-title">
                                         <h3 class="ec-sidebar-title">Color</h3>
                                     </div>
@@ -219,7 +257,7 @@ export default {
                                             </li>
                                         </ul>
                                     </div>
-                                </div>
+                                </div> -->
                             </div>
                         </div>
                     </div>

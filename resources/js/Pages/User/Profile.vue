@@ -28,20 +28,40 @@ export default {
     methods: {
         ...mapActions(['getWishlistItems', 'getCartItems']),
         submit() {
+            if(this.form.new_password){
+                if(this.form.password == ''){
+                    this.$toast.error('Please enter current password!!')
+                    return false;
+                }
+            }
             if(this.form.new_password != this.form.confirm_password) {
                 this.$toast.error('New password and confirm password is not same');
                 return false;
             }
             axios.post('/api/password-check', {form : this.form, user: this.user}).then((response)=>{
                 if(response.data.status == 'success'){
-                    this.form.post(route('user.profile.update'),  {
-                        preserveScroll: true,
-                        forceFormData: true,
-                        onFinish: () => {
-                            this.form.reset('new_password', 'confirm_password', 'avatar'); 
-                            this.$toast.success('Profile updated successfully') 
-                        }                        
+                    let existingObj = this;
+                    const config = {
+                        headers: {
+                            'content-type': 'multipart/form-data'
+                        }
+                    }
+                    let data = new FormData();
+                    data.append('avatar', this.form.avatar);
+                    data.append('name', this.form.name);
+                    data.append('phone', this.form.phone);
+                    axios.post('update-profile', data, config)
+                    .then((response) => {
+                        console.log('response', response.data)
                     })
+                    // this.form.post(route('user.profile.update'),  {
+                    //     preserveScroll: true,
+                    //     forceFormData: true,
+                    //     onFinish: () => {
+                    //         this.form.reset('new_password', 'confirm_password', 'avatar'); 
+                    //         this.$toast.success('Profile updated successfully') 
+                    //     }                        
+                    // })
                 }else{
                     this.$toast.warning('Password is incorrect!!')
                 }

@@ -24,11 +24,16 @@
                         </div>
                         <div class="align-self-center">
                             <div class="ec-header-bottons">
-                                <a :href="route('login')" class="ec-header-btn ec-side-toggle">
+                                <!-- <a href="javascript:void(0)" v-if="loggedIn"></a> -->
+                                <a :href="(loggedIn) ? route('dashboard') : route('login')" class="ec-header-btn ec-side-toggle">
                                     <div class="header-icon">
                                         <img src="/images/icons/user.svg" class="svg_img header_svg" alt="" />
                                     </div>
-                                    <span class="ec-cart-title fs-11">
+                                    <span class="ec-cart-title fs-11" v-if="loggedIn">
+                                        <span class="text-muted d-block">Account</span>
+                                        <span class="ec-cart-count">Dashboard</span>
+                                    </span>
+                                    <span class="ec-cart-title fs-11" v-else>
                                         <span class="text-muted d-block">Account</span>
                                         <span class="ec-cart-count">LOGIN</span>
                                     </span>
@@ -104,6 +109,10 @@ export default {
         currencyIcon() {
             return 'Rs. ';
         },
+        loggedIn(){
+            return this.$page.props.isUserLogged
+        }
+
     },
 };
 </script>

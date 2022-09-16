@@ -157,7 +157,7 @@ class HomeController extends Controller
                             ->leftJoin('variation_location_details as vld', 'vld.variation_id', '=', 'v.id')
                             ->where('products.type', '!=', 'modifier')
                             ->where('products.not_for_selling', 0)
-                            ->where('products.new_tag', 1)
+                            // ->where('products.new_tag', 1)
                             ->where('products.slug',  $slug)
                             ->where('products.is_inactive', 0)
                             ->select('products.id',
@@ -172,6 +172,7 @@ class HomeController extends Controller
                                     'products.image',
                                     'v.sub_sku',
                                     'v.sell_price_inc_tax as price')->first();
+                                    // dd($product);
         return Inertia::render('Product/Detail', compact('product'));
     }
 
@@ -183,14 +184,15 @@ class HomeController extends Controller
                             ->leftJoin('variation_location_details as vld', 'vld.variation_id', '=', 'v.id')
                             ->where('products.type', '!=', 'modifier')
                             ->where('products.not_for_selling', 0)
-                            ->where('products.new_tag', 1)
                             ->where('products.category_id',  $category->id)
                             ->where('products.is_inactive', 0)
+                            ->orderBy('products.new_tag', 'desc')
                             ->select('products.id',
                                     'products.new_tag',
                                     'products.sale_start',
                                     'products.sale_end',
                                     'products.name',
+                                    'products.weight',
                                     'products.slug',
                                     'c1.name as category',
                                     'c1.slug as category_slug',
@@ -198,32 +200,36 @@ class HomeController extends Controller
                                     'products.image',
                                     'v.sub_sku',
                                     'v.sell_price_inc_tax as price')->get();
-        return Inertia::render('Product/Category', compact('products', 'category'));
+            $weights = Product::leftJoin('categories as c1', 'products.category_id', '=', 'c1.id')
+                            ->join('variations as v', 'v.product_id', '=', 'products.id')
+                            ->leftJoin('variation_location_details as vld', 'vld.variation_id', '=', 'v.id')
+                            ->where('products.type', '!=', 'modifier')
+                            ->where('products.not_for_selling', 0)
+                            ->where('products.category_id',  $category->id)
+                            ->where('products.is_inactive', 0)
+                            ->orderBy('products.weight', 'asc')
+                            ->select('products.weight')->distinct()->get()->toArray();
+            $weights = array_column($weights, 'weight');
+            //$users = User::select('name')->distinct()->get();
+        return Inertia::render('Product/Category', compact('products', 'category', 'weights'));
     }
     public function userProfileUpdate(Request $request){
-        $contact = Auth::user();
-        // dd($contact);
         // dd($request->all());
-        // if($request->password && Hash::make($request->password) != $contact->password){
-        //     $this->data['user'] = Auth::user();
-        //     $this->data['errors'] = 'Password is incorrect';
-        //     return Inertia::render('User/Profile', $this->data);
-        // }
+        // $request->validate([
+        //     'avatar' => 'required|mimes:jpg,jpeg,png,csv,txt,xlx,xls,pdf|max:2048'
+        //  ]);
+        $contact = Auth::user();
         $contactId = $contact->id;
         if($request->new_password){
             $password = Hash::make($request->new_password);
         }else{
             $password = $contact->password;
         }
-        // echo $contact->password; echo '<br>';
-        // echo $password; die;
         Contact::where('id', $contactId)->update([
             'name' => $request->name,
             'mobile' => $request->phone,
             'password' => $password
         ]);
-        // $this->data['smenu'] = 'profile';
-        // $this->data['user'] = Auth::user();
         return back();
     }
 }

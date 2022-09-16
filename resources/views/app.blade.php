@@ -18,7 +18,7 @@
         <link rel="apple-touch-icon" href="{{ asset('/images/favicon.png') }}" />
         <meta name="msapplication-TileImage" content="{{ asset('/images/favicon.png') }}" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap">
-        <link rel="stylesheet" href="{{ asset('css/app.css') }}?v=4">
+        <link rel="stylesheet" href="{{ asset('css/app.css') }}?v=3">
         <style>
             @font-face {
                 font-family: 'EcIcons';
@@ -37,7 +37,7 @@
     </head>
     <body class="font-sans antialiased">
         @inertia
-        <script src="{{ asset('js/app.js') }}?v=10" defer></script>
+        <script src="{{ asset('js/app.js') }}?v=11" defer></script>
         <script src="{{ asset('assets/js/vendor/jquery-3.5.1.min.js') }}"></script>
         <script>
             $(document).ready(function() {
