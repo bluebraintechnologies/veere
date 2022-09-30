@@ -9,20 +9,7 @@
                     <button class="ec-close" type="button" @click="closeSidebar">×</button>
                 </div>
                 <ul class="eccart-pro-items">
-                    <cart-item :item="citem" v-for="(citem, ck) in cartItems" :key="'cart-item-'+ck" />
-                    <!-- <li v-for="item in cartItems.product" :key="'catr-item-' + item.id">
-                        <a href="product-left-sidebar.html" class="sidecart_pro_img"><img
-                                src="assets/images/product-image/55_1.jpg" alt="product"></a>
-                        <div class="ec-pro-content">
-                            <a href="single-product-left-sidebar.html" class="cart_pro_title">{{ item.product }}</a>
-                            <span class="cart-price"><span>{{ item.min_price }}</span> x 1</span>
-                            <div class="qty-plus-minus">
-                                <input class="qty-input" type="text" name="ec_qtybtn" value="1" />
-                            </div>
-                            <a href="#" class="remove">×</a>
-                        </div>
-                    </li> -->
-                    
+                    <cart-item :item="citem" v-for="(citem, ck) in cartItems" :key="'cart-item-'+ck" />                    
                 </ul>
             </div>
             <div class="ec-cart-bottom">
@@ -38,6 +25,7 @@
                         </tbody>
                     </table>
                 </div>
+                <p class="text-center" v-if="cartTotalDiscount > 0">Your are saving <b><price :price="cartTotalDiscount" :currency="currencyIcon"></price></b></p>
                 <div class="cart_btn">
                     <Link :href="route('cart')" class="btn btn-primary">View Cart</Link>
                     <Link :href="route('checkout')" class="btn btn-secondary">Checkout</Link>
@@ -67,7 +55,7 @@ export default {
          currencyIcon() {
              return (this.currency)?this.currency:'Rs. ';
         },
-        ...mapGetters(["cartItems", 'cartTotal', 'currency'])
+        ...mapGetters(["cartItems", 'cartTotal', 'currency', 'cartTotalDiscount'])
     },
     methods: {
         ...mapActions(["addProductToCart"])

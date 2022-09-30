@@ -5,6 +5,7 @@ import { mapActions } from 'vuex';
 export default {
     name: "Dashboard",
     props: {
+        user:Object,
        orders:Object|Array,
        synop:Object|Array
     },

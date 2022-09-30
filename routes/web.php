@@ -52,7 +52,10 @@ Route::group(['prefix' => 'user', 'middleware' => ['auth', 'verified']], functio
     Route::post('/new-user-email', [App\Http\Controllers\HomeController::class, 'update_email'])->name('user.change.email');
     Route::post('/update-profile', [App\Http\Controllers\HomeController::class, 'userProfileUpdate'])->name('user.profile.update');
     Route::get('/order-detail/{id}', [App\Http\Controllers\UserController::class, 'orderDetail'])->name('order_detail');
+    Route::get('/track-order/{id}', [App\Http\Controllers\UserController::class, 'trackOrder'])->name('track-order');
+    Route::post('/logout-user', [App\Http\Controllers\UserController::class, 'logout'])->name('logout');
     
 });
+Route::get('/send/email', [App\Http\Controllers\HomeController::class, 'email'])->name('email'); // testing purpose
 
 Route::post('rozer/payment/pay-success', [App\Http\Controllers\RazorpayController::class, 'payment'])->name('payment.rozer');

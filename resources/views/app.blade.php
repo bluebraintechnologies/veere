@@ -18,7 +18,7 @@
         <link rel="apple-touch-icon" href="{{ asset('/images/favicon.png') }}" />
         <meta name="msapplication-TileImage" content="{{ asset('/images/favicon.png') }}" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap">
-        <link rel="stylesheet" href="{{ asset('css/app.css') }}?v=3">
+        <link rel="stylesheet" href="{{ asset('css/app.css') }}">
         <style>
             @font-face {
                 font-family: 'EcIcons';
@@ -33,11 +33,12 @@
             }
             #nprogress .spinner{display: block;position: fixed;z-index: 1031;top: 0;right: 0;width: calc(100vw);text-align: center;height: calc(100vh);background: rgba(255,255,255,0.5);margin: 0;padding: calc(40vh) 0 0 calc(50vw - 8rem);}
         </style>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
         @routes
     </head>
     <body class="font-sans antialiased">
         @inertia
-        <script src="{{ asset('js/app.js') }}?v=11" defer></script>
+        <script src="{{ asset('js/app.js') }}" defer></script>
         <script src="{{ asset('assets/js/vendor/jquery-3.5.1.min.js') }}"></script>
         <script>
             $(document).ready(function() {

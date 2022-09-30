@@ -19,11 +19,20 @@ class CheckoutController extends Controller
     protected $data = [];
     public function index()
     {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
         $carts = Cart::where('user_id', Auth::user()->id)->count();
         if ($carts > 0) {
+            $this->data['isUserLogged'] = 0;
+            if (Auth::check()) {
+                $this->data['isUserLogged'] = 1;
+            }
             $user = Auth::user();
             $this->data['step'] = 'shipping';
             $this->data['addresses'] = Address::where('user_id', $user->id)->get();
+            $this->data['set_default'] = Address::where('user_id', $user->id)->where('set_default', 1)->select('id')->first();
+            $this->data['set_default_billing'] = Address::where('user_id', $user->id)->where('set_default_billing', 1)->select('id')->first();
             return Inertia::render('Checkout/Shipping', $this->data);
         }
         return redirect()->route('dashboard');
@@ -84,6 +93,10 @@ class CheckoutController extends Controller
 
     public function get_payment(Request $request)
     {
+        $this->data['isUserLogged'] = 0;
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
         $user = auth()->user();
         $carts = Cart::where('user_id', Auth::user()->id)->count();
         if ($carts > 0) {
@@ -97,7 +110,10 @@ class CheckoutController extends Controller
     public function order_confirmed()
     {
         $combined_order = Transaction::findOrFail(Session::get('combined_order_id'));
-        
+        $this->data['isUserLogged'] = 0;
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
         Session::forget('combined_order_id');
         Cart::where('user_id',  $combined_order->contact_id)->delete();
         $this->data['message'] = '';

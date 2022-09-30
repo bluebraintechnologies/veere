@@ -6,7 +6,8 @@ export default {
     },
     computed: {
         formatted_price() {
-           return parseInt(this.price).toFixed(2);
+            let price = parseFloat(this.price)
+           return price.toFixed(2);
         }
     }
 }

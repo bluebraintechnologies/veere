@@ -31,7 +31,7 @@
                             <div class="ec-cart-inner">
                                <div class="checkout-page">
                                    <div class="checkout-page-header active">
-                                       Select Shipping Address or Create New Address
+                                       Select Shipping/Billing Address or Create New Address
                                        <span class="float-right">
                                            <i class="ecicon eci-minus cursor-pointer" v-if="step == 'shipping'"></i>
                                            <i class="ecicon eci-plus cursor-pointer" @click="step = 'shipping'" v-else></i>
@@ -42,11 +42,24 @@
                                             <div class="col-md-4 col-sm-12 mb-4" v-for="(address, index) in addresses" :key="'address-' + index">
                                                 <div class="p-2 border">
                                                     <h6>{{ address.name }}
-                                                        <button type="button" class="btn select-btn btn-primary" v-if="shipAddress == address.id">
-                                                            selected
+                                                        <button type="button" class="" v-if="shipAddress == address.id" title="Shipping Address">
+                                                            <i class="bi bi-cart-check-fill"></i>
                                                         </button>
-                                                        <button type="button" class="btn select-btn btn-warning" @click="selectAddress(address)" v-else>
-                                                            select
+                                                        <button type="button" class=""  title="Shipping Address" v-else-if="shipAddress == null && address.set_default">
+                                                            <i class="bi bi-cart-check-fill"></i>
+                                                        </button>
+                                                        <button type="button" class="" @click="selectAddress(address)" title="Shipping Address" v-else>
+                                                            <i class="bi bi-cart"></i>
+                                                        </button>
+
+                                                        <button type="button" class="" v-if="billingAddress == address.id" title="Billing Address">
+                                                            <i class="bi bi-file-earmark-easel-fill"></i>
+                                                        </button>
+                                                        <button type="button" class="" title="Billing Address" v-else-if="billingAddress == null && address.set_default_billing">
+                                                            <i class="bi bi-file-earmark-easel-fill"></i>
+                                                        </button>
+                                                        <button type="button" class="" @click="selectBillingAddress(address)" title="Billing Address" v-else>
+                                                            <i class="bi bi-file-earmark-easel"></i>
                                                         </button>
                                                     </h6>
                                                     <ul>
@@ -90,6 +103,10 @@
                                                     </button>
                                                 </div>
                                             </div>
+                                            <div class="col-md-4 col-sm-12 mb-4">
+                                                
+
+                                            </div>
                                         </div>
                                    </div>
                                </div>
@@ -97,6 +114,36 @@
                         </div>
                     </div>
                     <div class="ec-cart-rightside col-lg-4 col-md-12">
+                        <div class="ec-sidebar-wrap ec-sidebar-delivery">
+                            <div class="ec-sidebar-block">
+                                <div class="row">
+                                    <div class="col-6 col-md-6 col-sm-12">
+                                        <h3 class="ec-sidebar-title">Prefered Delivery Time</h3>
+                                    </div>
+                                    <div class="col-6 col-md-6 col-sm-12">
+                                        <div class="form-group">
+                                            <select class="form-control" id="inputGroupSelect01" v-model="timing" @change="updateTiming()">
+                                                <option value="">Choose Delivery Time</option>
+                                                <option v-for="(time, index) in timings" :key="'time-'+index" :value="time" :selected="deliveryTime == time">{{ time }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ec-sidebar-wrap" v-if="shipAddress && billingAddress">
+                            <div class="ec-sidebar-block">
+                                <div class="row">
+                                    <div class="col-6 col-md-6 col-sm-12">
+                                        <h3 class="ec-sidebar-title">Make Selected Shipping/Billing Address As Default</h3>
+                                    </div>
+                                    <div class="col-6 col-md-6 col-sm-12 pt-3">                                        
+                                            <input @click="setShippingBilingDefault()" class=" shipping-billing-address w-1 h-1 text-blue-600 bg-gray-100 rounded border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" type="checkbox" value="" id="shipping-billing-address" >                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="ec-sidebar-wrap">
                             <div class="ec-sidebar-block">
                                 <div class="ec-sb-title">
@@ -108,7 +155,7 @@
                                             <div>
                                                 <span class="text-left">Sub-Total</span>
                                                 <span class="text-right">
-                                                    <price :price="cartTotal" :currency="currencyIcon"></price>
+                                                    <price :price="cartItemsPrice" :currency="currencyIcon"></price>
                                                 </span>
                                             </div>
                                             <div>
@@ -124,6 +171,12 @@
                                                 </span>
                                             </div>
                                             <div>
+                                                <span class="text-left">Discount</span>
+                                                <span class="text-right" v-if="cartTotalDiscount >= 1">
+                                                    <price :price="cartTotalDiscount" :currency="currencyIcon"></price>
+                                                </span>
+                                            </div>
+                                            <!-- <div>
                                                 <span class="text-left">Coupan Discount</span>
                                                 <span class="text-right" v-if="cartTotalDiscount >= 1">
                                                     <price :price="cartTotalDiscount" :currency="currencyIcon"></price> 
@@ -132,7 +185,7 @@
                                                 <span class="text-right" v-else>
                                                     <a class="ec-cart-coupan" @click="showCoupon = !showCoupon">Apply Coupan</a>
                                                 </span>
-                                            </div>
+                                            </div> -->
                                             <div class="ec-cart-coupan-content" :style="(showCoupon && cartTotalDiscount == 0)?'display:block':'display:none'">
                                                 <div class="ec-cart-coupan-form ">
                                                     <input class="ec-coupan" type="text" placeholder="Enter Coupan Code" name="ec-coupan" v-model="couponcode">
@@ -150,7 +203,7 @@
                                 </div>
                             </div>
                         </div>
-                        <a :href="route('checkout.get_payment')" class="btn btn-primary mt-4" v-if="shipAddress >= 1">
+                        <a :href="route('checkout.get_payment')" class="btn btn-primary mt-4" v-if="shipAddress >= 1 && billingAddress >= 1 && timing != ''">
                             Procees To Payment Mode
                         </a>
                         <button type="button" class="btn btn-primary mt-4" @click="gotoPayment" v-else>
@@ -185,7 +238,18 @@ export default {
                 city:'',
                 postal_code:'',
                 landmark:''
-            })
+            }),
+            timing:'',
+            timings:[
+                '07AM TO 09AM',
+                '09AM TO 11AM',
+                '11AM TO 01PM',
+                '01AM TO 03PM',
+                '03AM TO 05PM',
+                '05AM TO 07PM',
+                '07AM TO 09PM',
+            ],
+            
         }
     },
     components: {
@@ -199,13 +263,14 @@ export default {
         addresses:[Array]
     },
     computed: {
-        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'shipAddress']),
+        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'shipAddress', 'billingAddress', 'deliveryTime', 'cartItemsPrice']),
         currencyIcon() {
             return this.currency;
         },
+        
     },
     methods: {
-        ...mapActions(['addCouponCode', 'removeCouponCode', 'updateCartAddress']),
+        ...mapActions(['addCouponCode', 'removeCouponCode', 'updateCartAddress', 'updateCartBillingAddress', 'updateDeliveryTiming']),
         addInCouponCode() {
             this.addCouponCode([this, {code:this.couponcode}])
         },
@@ -213,7 +278,13 @@ export default {
             this.removeCouponCode([this, {code:code}])
         },
         selectAddress(aid) {
+            $("#shipping-billing-address").prop("checked", false);
+            // document.getElementById('shipping-billing-address').checked = false
             this.updateCartAddress([this, aid.id])
+        },
+        selectBillingAddress(aid){
+            $("#shipping-billing-address").prop("checked", false);
+            this.updateCartBillingAddress([this, aid.id])
         },
         saveAddress(){
             this.form.post('/api/address').then((response) => {
@@ -223,11 +294,57 @@ export default {
             })
         },
         gotoPayment() {
-
-                this.$toast.error('Please select shipping address');
-            
+            if(this.timing == ''){
+                this.$toast.error('Please select expected delivery time ');     
+                return false           
+            }
+            this.$toast.error('Please select shipping <i class="bi bi-cart"></i> and billing <i class="bi bi-file-earmark-easel"></i> address  ');            
+        },
+        updateTiming(){
+            this.updateDeliveryTiming([this, this.timing])
+        },
+        setShippingBilingDefault(){
+            if (document.getElementById('shipping-billing-address').checked){
+                axios.post('/api/set-default-shipping-billing-address', {shipAddress: this.shipAddress, billingAddress: this.billingAddress})
+            }else{
+                axios.post('/api/un-set-default-shipping-billing-address')
+            }
         }
     },
-   
+    mounted() {
+        
+        let setDefault = this.addresses.filter((ele) => {
+            if(ele.set_default){
+                return ele
+            }
+        })
+        if(setDefault.length == 1){
+            console.log('setDefault',setDefault[0]['id'])
+            this.selectAddress(setDefault[0])
+        }
+        let setDefaultBilling = this.addresses.filter((ele) => {
+            if(ele.set_default_billing){
+                return ele
+            }
+        })
+        if(setDefaultBilling.length == 1){
+            this.selectBillingAddress(setDefaultBilling[0])
+        }
+        
+    },
+    created(){
+        
+    } 
 };
 </script>
+<style>
+    .checkout-page-body{
+        overflow-y:auto;
+    }
+    .ec-sidebar-delivery h3{
+        display:inline;
+    }
+    .shipping-billing-address{
+        height: 20px;
+    }
+</style>

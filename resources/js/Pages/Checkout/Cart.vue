@@ -75,7 +75,7 @@
                                             <div>
                                                 <span class="text-left">Sub-Total</span>
                                                 <span class="text-right">
-                                                    <price :price="cartTotal" :currency="currencyIcon"></price>
+                                                    <price :price="cartItemsPrice" :currency="currencyIcon"></price>
                                                 </span>
                                             </div>
                                             <div>
@@ -91,6 +91,12 @@
                                                 </span>
                                             </div>
                                             <div>
+                                                <span class="text-left">Discount</span>
+                                                <span class="text-right" v-if="cartTotalDiscount >= 1">
+                                                    <price :price="cartTotalDiscount" :currency="currencyIcon"></price>
+                                                </span>                                                
+                                            </div>
+                                            <!-- <div>
                                                 <span class="text-left">Coupan Discount</span>
                                                 <span class="text-right" v-if="cartTotalDiscount >= 1">
                                                     <price :price="cartTotalDiscount" :currency="currencyIcon"></price> 
@@ -99,7 +105,7 @@
                                                 <span class="text-right" v-else>
                                                     <a class="ec-cart-coupan" @click="showCoupon = !showCoupon">Apply Coupan</a>
                                                 </span>
-                                            </div>
+                                            </div> -->
                                             <div class="ec-cart-coupan-content" :style="(showCoupon && cartTotalDiscount == 0)?'display:block':'display:none'">
                                                 <div class="ec-cart-coupan-form ">
                                                     <input class="ec-coupan" type="text" placeholder="Enter Coupan Code" name="ec-coupan" v-model="couponcode">
@@ -152,7 +158,7 @@ export default {
         showCart: [Boolean],
     },
     computed: {
-        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'currency']),
+        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'currency', 'cartItemsPrice']),
         currencyIcon() {
             return this.currency;
         },

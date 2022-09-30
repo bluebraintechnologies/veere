@@ -7,6 +7,7 @@
             </Link>
         </td>
         <td data-label="Price" class="ec-cart-pro-price">
+            <small><span class="old-price" v-if="item.discount > 0">{{ currencyIcon+item.oldPrice }}</span></small>
             <span class="amount">{{ currencyIcon+item.price }}</span> 
         </td>
         <td data-label="Quantity" class="ec-cart-pro-qty" style="text-align: center;">
@@ -58,3 +59,12 @@ export default {
     }
 }
 </script>
+<style>
+    .old-price{
+        text-decoration: line-through;
+        display:block;
+    }
+    .amount{    
+        display:block;
+    }
+</style>

@@ -6,7 +6,8 @@ export default {
     },
     computed: {
         formatted_price() {
-           return this.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        //    return this.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+           return parseInt(this.price).toFixed(2);
         }
     }
 }

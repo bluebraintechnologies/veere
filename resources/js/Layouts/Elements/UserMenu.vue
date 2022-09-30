@@ -4,7 +4,8 @@
             <div class="ec-vendor-block">
                 <div class="ec-vendor-block-bg"></div>
                 <div class="ec-vendor-block-detail">
-                    <img class="v-img" :src="$local_media_url+'1.jpg'" alt="image">
+                    <img class="v-img" :src="'/avatars/' + $page.props.user.image" alt="image" v-if="$page.props.user.image">
+                    <img class="v-img" :src="$local_media_url+'1.jpg'" alt="image" v-else>
                     <h5>{{  $page.props.auth.user.name }}</h5>
                 </div> 
                 <div class="ec-vendor-block-items">
@@ -25,7 +26,8 @@
                             <Link :href="route('wishlist')">Wishlist</Link>
                         </li>
                         <li>
-                            <Link :href="route('logout')">Logout</Link>
+                            <!-- <Link :href="route('logout')">Logout</Link> -->
+                            <a href="javascript:void(0)" @click="logoutUser()">Logout</a>
                         </li>
                     </ul>
                 </div>
@@ -36,7 +38,14 @@
 <script>
 export default {
     props: {
-        activemenu:String
+        activemenu:String,        
+    },
+    methods:{
+        logoutUser(){
+            axios.post('/user/logout-user').then((response) => {
+                location.reload()
+            })
+        }
     }
 }
 </script>

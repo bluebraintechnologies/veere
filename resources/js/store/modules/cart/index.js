@@ -42,7 +42,31 @@ const actions = {
             if(response.data.status == 'failed') {
                 vm.$toast.info(response.data.message);
             } else if(response.data.status == 'success') {
-                vm.$toast.success('Address updated in the cart.');
+                vm.$toast.success('Shipping Address updated in the cart.');
+                commit('UPDATE_CART_ITEMS', response.data.items)
+            } else {
+                vm.$toast.error('Some unexpected happen. Please refresh the page and try again!');
+            }
+        });
+    },
+    updateDeliveryTiming({ commit }, [vm, timing]) {
+        axios.post('/api/cart/update-delivery-timing', {timing:timing}).then((response) => {
+            if(response.data.status == 'failed') {
+                vm.$toast.info(response.data.message);
+            } else if(response.data.status == 'success') {
+                vm.$toast.success('Delivery Timing updated .');
+                commit('UPDATE_CART_ITEMS', response.data.items)
+            } else {
+                vm.$toast.error('Some unexpected happen. Please refresh the page and try again!');
+            }
+        });
+    },
+    updateCartBillingAddress({ commit }, [vm, aid]) {
+        axios.post('/api/cart/update-billing-address', {address_id:aid}).then((response) => {
+            if(response.data.status == 'failed') {
+                vm.$toast.info(response.data.message);
+            } else if(response.data.status == 'success') {
+                vm.$toast.success('Billing Address updated in the cart.');
                 commit('UPDATE_CART_ITEMS', response.data.items)
             } else {
                 vm.$toast.error('Some unexpected happen. Please refresh the page and try again!');
@@ -87,15 +111,30 @@ const getters = {
         return (state.cartItems && state.cartItems.length == 0)?0: state.cartItems.reduce((acc, cartItem) => {
             return cartItem.address_id;
         }, 0);
-    }, 
+    },
+    billingAddress : state => {
+        return (state.cartItems && state.cartItems.length == 0)?0: state.cartItems.reduce((acc, cartItem) => {
+            return cartItem.billing_address_id;
+        }, 0);
+    },
+    deliveryTime : state => {
+        return (state.cartItems && state.cartItems.length == 0)?0: state.cartItems.reduce((acc, cartItem) => {
+            return cartItem.delivery_time;
+        }, 0);
+    },
     cartTotal: state => {
         return (state.cartItems && state.cartItems.length == 0)?0: state.cartItems.reduce((acc, cartItem) => {
             return (Number(cartItem.quantity) * Number(cartItem.price)) + acc;
         }, 0).toFixed(2);
     },
+    cartItemsPrice: state => {
+        return (state.cartItems && state.cartItems.length == 0)?0: state.cartItems.reduce((acc, cartItem) => {
+            return (Number(cartItem.quantity) * Number(cartItem.oldPrice)) + acc;
+        }, 0).toFixed(2);
+    },
     cartTotalDiscount: state => {
         return (state.cartItems && state.cartItems.length == 0)?0: state.cartItems.reduce((acc, cartItem) => {
-            return Number(cartItem.discount) + acc;
+            return Number(cartItem.quantity) * Number(cartItem.discount) + acc;
         }, 0);
     },
     cartTotalTax: state => {
@@ -115,7 +154,7 @@ const getters = {
     },
     grandTotal: state => {
         return (state.cartItems.length == 0)?0: state.cartItems.reduce((acc, cartItem) => {
-            return ((Number(cartItem.quantity) * cartItem.price) + Number(cartItem.shipping_cost) + Number(cartItem.tax) - Number(cartItem.discount) ) + acc;
+            return ((Number(cartItem.quantity) * cartItem.oldPrice) + Number(cartItem.shipping_cost) + Number(cartItem.tax) - Number(cartItem.quantity) * Number(cartItem.discount) ) + acc;
         }, 0).toFixed(2);
     },
 }

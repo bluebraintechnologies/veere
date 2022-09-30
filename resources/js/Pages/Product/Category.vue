@@ -2,6 +2,8 @@
 import GuestLayout from "@/Layouts/Main.vue";
 import { mapGetters } from "vuex";
 import SingleProduct from "./SingleGrid.vue";
+import moment from 'moment';
+
 export default {
     name: "Category",
     components: {
@@ -14,12 +16,30 @@ export default {
             order_by:1,
             newProducts : [],
             selectedWeights : [],
-            loader : false
+            selectedPrices : [],
+            loader : false,
+            searchCategories:[],
+            products : [],
+            weights : [],
+            price_range : '',
+            price_filter:{ 
+                0 : 'Rs. 1 to RS. 100', 
+                1 : 'Rs. 101 to Rs. 200',  
+                2 : 'Rs. 201 to Rs. 300', 
+                3 : 'Rs. 301 to Rs. 400', 
+                4 : 'Rs. 401 to Rs. 500', 
+                5 : 'Rs. 501 to Rs. 600', 
+                6 : 'Rs. 601 to Rs. 700',
+                7 : 'Rs. 701 to Rs. 800',
+                8 : 'Rs. 801 to Rs. 900',
+                9 : 'Rs. 901 to Rs. 1000',
+            }
         };
     },
     props: {
-        products: [Array, Object],
-        weights : [Array, Object],
+        // products: [Array, Object],
+        // weights : [Array, Object],
+        categories : [Array, Object]
     },
     computed: {
         ...mapGetters(["navItems"]),
@@ -27,33 +47,93 @@ export default {
             return this.$page.props.category;
         },
         sorted_products(){
-            this.loader = true;
-            this.newProducts = this.products
-            if(this.selectedWeights.length > 0){
-                let newProducts = this.newProducts.filter((ele) => {
-                    if(this.selectedWeights.indexOf(parseFloat(ele.weight)) >= 0){
-                        return ele
+            if(this.products.length > 0){
+                this.newProducts = this.products
+                this.newProducts.forEach((ele) => {
+                    let day = moment().date()
+                    let month = moment().month() + 1
+                    let year = moment().year()
+                    let today = year+'-'+month+'-'+day
+                    let discountEnabel = false
+                    if(moment(today).isSame(ele.discount_start_date)){
+                        discountEnabel = true;
+                    } 
+                    if(moment(today).isSame(ele.discount_end_date)){
+                        discountEnabel = true;
+                    }                    
+                    if(moment(today).isAfter(ele.discount_start_date) && moment(today).isBefore(ele.discount_end_date)){
+                        discountEnabel = true;
+                    }
+                    ele.latest = ele.price
+                    if(discountEnabel){
+                        let up = ele.price
+                        let dt = ele.discount_type
+                        let pd = ele.percent_discount
+                        let fd = ele.flat_discount
+                        let fp = 0
+                        if(dt == 'percent') {
+                            ele.latest = up*((100-pd)/100);
+                        }
+                        if(dt == 'amount') {
+                            ele.latest = up - fd;
+                        }
                     }
                 })
-                this.newProducts = newProducts;
+                if(this.selectedWeights.length > 0){
+                    let newProducts = this.newProducts.filter((ele) => {
+                        if(this.selectedWeights.indexOf(parseFloat(ele.weight)) >= 0){
+                            return ele
+                        }
+                    })
+                    this.newProducts = newProducts;
+                }
+                if(this.selectedPrices.length > 0){
+                    let newProducts = this.newProducts.filter((ele) => {
+                        if(this.selectedPrices.indexOf(parseInt(ele.latest/100)) >= 0){
+                            return ele
+                        }
+                    })
+                    this.newProducts = newProducts;
+                }
+                var pro = [];                
+                if(Number(this.order_by) == 1){
+                    pro = this.newProducts.sort((a,b) => Number(a.new_tag) < Number(b.new_tag) ? 1 : -1)
+                } else if(Number(this.order_by) == 2){
+                    pro = this.newProducts.sort((a,b) => a.name > b.name ? 1 : -1)
+                } else if(Number(this.order_by) == 3){
+                    pro = this.newProducts.sort((a,b) => a.name < b.name ? 1 : -1)
+                } else if(Number(this.order_by) == 4){
+                    pro = this.newProducts.sort((a,b) => parseFloat(a.price) > parseFloat(b.price) ? 1 : -1)
+                } else if(Number(this.order_by) == 5){
+                    pro = this.newProducts.sort((a,b) => parseFloat(a.price) < parseFloat(b.price) ? 1 : -1)
+                }
+                return pro;
+            }else{
+                return [];
             }
-            var pro = [];
-            if(Number(this.order_by) == 1){
-                pro = this.newProducts.sort((a,b) => Number(a.new_tag) < Number(b.new_tag) ? 1 : -1)
-            } else if(Number(this.order_by) == 2){
-                pro = this.newProducts.sort((a,b) => a.name > b.name ? 1 : -1)
-            } else if(Number(this.order_by) == 3){
-                pro = this.newProducts.sort((a,b) => a.name < b.name ? 1 : -1)
-            } else if(Number(this.order_by) == 4){
-                pro = this.newProducts.sort((a,b) => parseFloat(a.price) > parseFloat(b.price) ? 1 : -1)
-            } else if(Number(this.order_by) == 5){
-                pro = this.newProducts.sort((a,b) => parseFloat(a.price) < parseFloat(b.price) ? 1 : -1)
-            }
-            this.loader = false;
-            return pro;
+            
+        },
+        priceRange(){
+            return this.price_range
         }
     },
     methods: {
+        getSelectedCategroyProduct(){
+            if(this.searchCategories.length > 1)
+            {
+                this.loader = true;
+            }
+            axios.post('/api/get-selected-category-product', {categories : this.searchCategories}).then((response) => {
+                this.products = response.data.products
+                this.weights = response.data.weights
+                this.price_range = response.data.price_range
+                this.loader = false;
+            })
+        }
+    },
+    created(){
+        this.searchCategories[0] = this.select_category.id
+        this.getSelectedCategroyProduct()
     },
     setup() {
         return {};
@@ -93,11 +173,10 @@ export default {
             <div class="container">
                 <div class="row">
                     <div class="ec-shop-rightside col-lg-9 col-md-12 order-lg-last order-md-first margin-b-30">
-                        <!-- Shop Top Start -->
                         <div class="ec-pro-list-top d-flex">
                             <div class="col-md-6 ec-grid-list">
                                 <div class="ec-gl-btn">
-                                    
+                                    {{ products.length }} items found
                                 </div>
                             </div>
                             <div class="col-md-6 ec-sort-select">
@@ -114,7 +193,7 @@ export default {
                             </div>
                         </div>
                         <div class="shop-pro-content">
-                            <div class="shop-pro-inner" v-if="loader">
+                            <div class="shop-pro-inner text-center" v-if="loader">
                                 <img src="/images/loader.gif" />
                             </div>
                             <div class="shop-pro-inner" :class="{'list-view': !gridView}" v-else>
@@ -124,17 +203,6 @@ export default {
                                     </div>
                                 </div>
                             </div>
-                            <!-- <div class="ec-pro-pagination">
-                                <span>Showing 1-12 of 21 item(s)</span>
-                                <ul class="ec-pro-pagination-inner">
-                                    <li><a class="active" href="#">1</a></li>
-                                    <li><a href="#">2</a></li>
-                                    <li><a href="#">3</a></li>
-                                    <li><a href="#">4</a></li>
-                                    <li><a href="#">5</a></li>
-                                    <li><a class="next" href="#">Next <i class="ecicon eci-angle-right"></i></a></li>
-                                </ul>
-                            </div> -->
                         </div>
                     </div>
                     <div class="ec-shop-leftside col-lg-3 col-md-12 order-lg-first order-md-last">
@@ -150,19 +218,36 @@ export default {
                                     <div class="ec-sb-block-content">
                                         <ul>
                                             <li>
-                                                <div class="ec-sidebar-block-item">
-                                                    <input readonly type="checkbox" checked /> <a href="#">{{ (select_category)?select_category.name:'-' }}</a><span
-                                                        class="checked"></span>
+                                                <div class="ec-sidebar-block-item" v-for="(category, index) in categories" :key="'category-' + index">
+                                                    <input readonly type="checkbox" v-model="searchCategories" :value="category.id" :id="'category_name-'+category.id" @change="getSelectedCategroyProduct()"/> 
+                                                    <a href="#"><label  :for="'category_name-'+category.id">{{ category.name }}</label></a>
+                                                    <span class="checked"></span>
+                                                    <div class="ec-sidebar-block-item sub-category" v-if="category.children_categories" v-for="(subcategory, ind) in category.children_categories" :key="'sub-category-' + ind">
+                                                        <input readonly type="checkbox" v-model="searchCategories" :value="subcategory.id" :id="'sub_category_name-'+subcategory.id" @change="getSelectedCategroyProduct()"/> 
+                                                        <a href="#"><label  :for="'sub_category_name-'+subcategory.id">{{ subcategory.name }}</label></a>
+                                                        <span class="checked"></span>
+                                                    </div>
                                                 </div>
                                             </li>
                                             
-                                            <!-- <li>
-                                                <div class="ec-sidebar-block-item ec-more-toggle">
-                                                    <span class="checked"></span><span id="ec-more-toggle">More
-                                                        Categories</span>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="ec-sidebar-block">
+                                    <div class="ec-sb-title">
+                                        <h3 class="ec-sidebar-title">Price</h3>
+                                    </div>
+                                    <div class="ec-sb-block-content">
+                                        <ul class="weight-filter">
+                                            <li v-for="(price, key, index) in price_filter" :key="'price-'+index" >
+                                                <div class="ec-sidebar-block-item" v-if="parseInt(key) <= priceRange">
+                                                    <input type="checkbox" v-model="selectedPrices" :value="parseInt(key)" :id="'price-' + index" />
+                                                    <label class="ml-5 mb-0" href="#" :for="'price-' + index" >
+                                                        {{ price }}
+                                                    </label>
+                                                    <span class="checked"></span>
                                                 </div>
-                                            </li> -->
-
+                                            </li>
                                         </ul>
                                     </div>
                                 </div>
@@ -171,8 +256,8 @@ export default {
                                         <h3 class="ec-sidebar-title">Weight</h3>
                                     </div>
                                     <div class="ec-sb-block-content">
-                                        <ul>
-                                            <li v-for="(weight, index) in weights" :key="index">
+                                        <ul class="weight-filter">
+                                            <li v-for="(weight, index) in weights" :key="'weight-'+index">
                                                 <div class="ec-sidebar-block-item">
                                                     <input type="checkbox" v-model="selectedWeights" :value="weight" :id="'weight-' + index" />
                                                     <label class="ml-5 mb-0" href="#" :for="'weight-' + index" >
@@ -181,83 +266,9 @@ export default {
                                                     <span class="checked"></span>
                                                 </div>
                                             </li>
-                                            <!-- <li>
-                                                <div class="ec-sidebar-block-item">
-                                                    <input type="checkbox" value="" /><a href="#">M</a><span
-                                                        class="checked"></span>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item">
-                                                    <input type="checkbox" value="" /> <a href="#">L</a><span
-                                                        class="checked"></span>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item">
-                                                    <input type="checkbox" value="" /><a href="#">XL</a><span
-                                                        class="checked"></span>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item">
-                                                    <input type="checkbox" value="" /><a href="#">XXL</a><span
-                                                        class="checked"></span>
-                                                </div>
-                                            </li> -->
                                         </ul>
                                     </div>
                                 </div>
-                                <!-- Sidebar Color item -->
-                                <!-- <div class="ec-sidebar-block ec-sidebar-block-clr">
-                                    <div class="ec-sb-title">
-                                        <h3 class="ec-sidebar-title">Color</h3>
-                                    </div>
-                                    <div class="ec-sb-block-content">
-                                        <ul>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#c4d6f9;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#ff748b;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#000000;"></span></div>
-                                            </li>
-                                            <li class="active">
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#2bff4a;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#ff7c5e;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#f155ff;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#ffef00;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#c89fff;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#7bfffa;"></span></div>
-                                            </li>
-                                            <li>
-                                                <div class="ec-sidebar-block-item"><span
-                                                        style="background-color:#56ffc1;"></span></div>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div> -->
                             </div>
                         </div>
                     </div>
@@ -266,3 +277,18 @@ export default {
         </section>
     </GuestLayout>
 </template>
+
+<style>
+    label{
+        margin-bottom:0px;
+    }
+    .weight-filter li{
+        padding-bottom:0px !important ;
+    }
+    .sub-category{
+        margin-left: 20px;
+    }
+    .ec-product-content{
+        width:25%;
+    }
+</style>

@@ -96,6 +96,17 @@
                                                 <li class="pb-0"><b>Zip Code </b> {{ address.postal_code }}</li>
                                             </ul>
                                         </div>
+                                        <b>Billing Address:</b>
+                                        <div class="p-2 border mb-4" v-if="billing_address">
+                                            <h6>{{ billing_address.name }} </h6>
+                                            <ul>
+                                                <li class="pb-0">{{ billing_address.address }}</li>
+                                                <li class="pb-0"><b>Landmark - </b> {{ billing_address.landmark }}</li>
+                                                <li class="pb-0"><b>Mob No. </b> {{ billing_address.phone }}</li>
+                                                <li class="pb-0"><b>City </b> {{ billing_address.city }}</li>
+                                                <li class="pb-0"><b>Zip Code </b> {{ billing_address.postal_code }}</li>
+                                            </ul>
+                                        </div>
                                         <div class="ec-cart-summary">
                                             <div>
                                                 <span class="text-left">Sub-Total</span>
@@ -166,13 +177,19 @@ export default {
         addresses:[Array]
     },
     computed: {
-        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'shipAddress', 'paymentModes']),
+        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'shipAddress', 'billingAddress', 'paymentModes']),
         currencyIcon() {
             return this.currency;
         },
         address() {
             let ads = this.addresses.filter(ele => {
                 return this.shipAddress == ele.id
+            })
+            return ads[0]
+        },
+        billing_address() {
+            let ads = this.addresses.filter(ele => {
+                return this.billingAddress == ele.id
             })
             return ads[0]
         }

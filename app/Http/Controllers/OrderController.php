@@ -44,16 +44,18 @@ class OrderController extends Controller
             $shipping = $shipping + $cart->shipping_cost;
         }
 
-        $total = $subtotal + $tax - $discount + $shipping;
-
+        // $total = $subtotal + $tax - $discount + $shipping;
+        $total = $subtotal + $tax + $shipping;
         $ref_count = $this->setAndGetReferenceCount('draft', 1);
         $invoice_no = $this->generateReferenceNumber('draft', $ref_count, 1);
-
+        
         $address = Address::where('id', $carts[0]['address_id'])->first();
         $ship = $address->address;
         $shipping_address = $address->name.',; '.$address->address.',; '.',; '.$address->landmark.',; '.$address->city.' - '.$address->postal_code.',; Mob No '.$address->phone;
         $warehouse = $this->getWarehouse($address->postal_code);
-
+        $billing = Address::where('id', $carts[0]['billing_address_id'])->first();
+        // $billing_address = $billing->name.',; '.$billing->address.',; '.',; '.$billing->landmark.',; '.$billing->city.' - '.$billing->postal_code.',; Mob No '.$billing->phone.', '.$billing->city.', Pin: '.$billing->postal_code;
+        $deliveryTime = $carts[0]['delivery_time'];
         $txn = Transaction::create([
             'business_id' => 1,
             'location_id' => $warehouse['bid'],
@@ -86,6 +88,8 @@ class OrderController extends Controller
             'pay_term_number' => "7",
             'pay_term_type' => "days",
             'shipping_address' => $address,
+            'billing_address' => $billing,
+            'delivery_time' => $deliveryTime,
             'payment_status' => 'due',
         ]);
         $this->createTransProduct($txn->id, $carts);
@@ -210,13 +214,19 @@ class OrderController extends Controller
                         'parent_sell_line_id' => null,
                         'children_type' => "",
                         'sub_unit_id' => null,
+                        'discount_type' => $product->discount_type,
+                        'flat_discount' => $product->flat_discount,
+                        'percent_discount' => $product->percent_discount,
+                        'discount_start_date' => $product->discount_start_date,
+                        'discount_end_date' => $product->discount_end_date,
                     ]);
             }
         }
     }
     
     public function getProduct($id) {
-        $product = Product::where('product_custom_field1', $id)->get()->first();
+        // $product = Product::where('product_custom_field1', $id)->get()->first();
+        $product = Product::where('id', $id)->get()->first();
         return $product->id;
     }
     

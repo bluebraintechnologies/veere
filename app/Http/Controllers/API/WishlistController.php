@@ -15,8 +15,9 @@ class WishlistController extends Controller
 
     public function index()
     {
-        $pids = Wishlist::where('user_id', Auth::user()->id)->get()->pluck('product_id');
-        return filter_products(Product::whereIn('id', $pids)->where('published', '1'))->get();   
+        // $pids = Wishlist::where('user_id', Auth::user()->id)->get()->pluck('product_id');
+        // return filter_products(Product::whereIn('id', $pids)->where('published', '1'))->get();   
+        return Wishlist::select('id', 'product_id')->with('product')->where('user_id', Auth::user()->id)->get();
     }
 
     public function store(Request $request)
@@ -43,5 +44,10 @@ class WishlistController extends Controller
             }
         }
         return ['status' => 'failed', 'msg' => 'login required'];
+    }
+    public function deleteWishlistItem(Request $request){
+        $productId = $request->id;
+        Wishlist::where('user_id', Auth::user()->id)->where('product_id', $productId)->delete();
+        return ['status' => 'success'];
     }
 }

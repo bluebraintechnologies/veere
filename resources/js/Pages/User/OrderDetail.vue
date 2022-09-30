@@ -51,6 +51,7 @@ export default {
                 <h5>Order #{{order.code}}</h5>
                 <div class="ec-header-btn">
                     <Link class="btn btn-lg btn-primary" :href="route('orders')">Back To List</Link>
+                    <Link :href="route('track-order', encode(order.invoice_no))" type="button" class="btn btn-lg btn-primary" >Track Order</Link>
                 </div>
             </div>
             <div class="ec-vendor-card-body">

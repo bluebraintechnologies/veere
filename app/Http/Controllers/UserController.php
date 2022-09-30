@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Auth;
 use Hash;
 use App\Models\User;
 use App\Models\Shop;
@@ -16,6 +15,7 @@ use Illuminate\Support\Str;
 use Mail;
 use Cache;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 class UserController extends Controller
 {
     protected $data = [];
@@ -31,7 +31,8 @@ class UserController extends Controller
     public function index()
     {
         if(Auth::user()->type == 'customer'){
-            $this->data['orders'] =Transaction::select('id', 'payment_status', 'status', 'invoice_no', 'final_total', 'shipping_status')->with('sell_lines')->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('shipping_status', '!=', 'delivered')->get();
+            $this->data['user'] = Auth::user();
+            $this->data['orders'] =Transaction::select('id', 'payment_status', 'status', 'invoice_no', 'final_total', 'shipping_status')->with('sell_lines')->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('shipping_status', '!=', 'delivered')->orderBy('id', 'desc')->get();
             $this->data['synop'] = [
                 'orders' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->count(),
                 'saving' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->sum('discount_amount'),
@@ -52,11 +53,18 @@ class UserController extends Controller
     {
         $this->data['smenu'] = 'profile';
         $this->data['user'] = Auth::user();
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
         return Inertia::render('User/Profile', $this->data);
     }
 
     public function orders(Request $request)
     {
+        $this->data['user'] = Auth::user();
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
         $this->data['smenu'] = 'orders';
         $user = auth()->user();
         $this->data['userinfo'] = $user;
@@ -66,6 +74,10 @@ class UserController extends Controller
 
     public function addresses(Request $request)
     {
+        $this->data['user'] = Auth::user();
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
         $this->data['smenu'] = 'addresses';
         $user = auth()->user();
         $this->data['userinfo'] = $user;
@@ -75,6 +87,10 @@ class UserController extends Controller
 
     public function wishlist(Request $request)
     {
+        $this->data['user'] = Auth::user();
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
         $this->data['smenu'] = 'wishlist';
         $this->data['wishlists'] = Wishlist::with('product')->where('user_id', Auth::user()->id)->paginate(9);////8
         return Inertia::render('User/Wishlist', $this->data);
@@ -121,16 +137,7 @@ class UserController extends Controller
         return back();
     }
 
-    public function trackOrder(Request $request)
-    {
-        if($request->has('order_code')){
-            $order = Order::where('code', $request->order_code)->first();
-            if($order != null){
-                return view('frontend.track_order', compact('order'));
-            }
-        }
-        return view('frontend.track_order');
-    }
+   
     
     public function orderDetail($oid = null)
     {
@@ -138,10 +145,37 @@ class UserController extends Controller
         if(!$order) {
             return redirect()->route('orders');
         }
+        $this->data['isUserLogged'] = 0;
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
         $this->data['smenu'] = 'orders';
         $user = auth()->user();
         $this->data['userinfo'] = $user;
+        $this->data['user'] = Auth::user();
         $this->data['order'] = $order;
+        // dd($this->data);
         return Inertia::render('User/OrderDetail', $this->data);
+    }
+    public function trackOrder($oid = null)
+    {
+        $order = Transaction::with(['sell_lines', 'payment_lines'])->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('invoice_no', base64_decode($oid))->first();
+        if(!$order) {
+            return redirect()->route('orders');
+        }
+        $this->data['isUserLogged'] = 0;
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+        }
+        $this->data['smenu'] = 'orders';
+        $user = auth()->user();
+        $this->data['userinfo'] = $user;
+        $this->data['user'] = Auth::user();
+        $this->data['order'] = $order;
+        // dd($this->data);
+        return Inertia::render('User/TrackOrder', $this->data);
+    }
+    public function logout(){
+        Auth::logout();
     }
 }

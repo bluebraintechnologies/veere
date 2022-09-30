@@ -74,7 +74,17 @@ export default {
                     })
                 }
             })
-        }
+        },
+        setAsDefaultDelivery(address){
+            axios.post('/api/set-as-delivery-address', {address : address}).then((response) => {
+                Inertia.reload()
+            })
+        },
+        setAsDefaultBilling(address){
+            axios.post('/api/set-as-billing-address', {address : address}).then((response) => {
+                Inertia.reload()
+            })
+        },
     },
     mounted() {
         this.getWishlistItems();
@@ -102,10 +112,17 @@ export default {
                         <div class="ec-vendor-detail-block ec-vendor-block-address border">
                             <h6>{{ address.name }}
                                 <span>
+                                    <button type="button" title="Set Default Billing" @click="[(address.set_default_billing) ? '' : setAsDefaultBilling(address)]">
+                                        <i class="bi " :class="[(address.set_default_billing) ? 'bi bi-file-earmark-easel-fill' : 'bi bi-file-earmark-easel']"></i>
+                                    </button>
+                                    <button type="button" title="Set Default Delivery" @click="[(address.set_default) ? '' : setAsDefaultDelivery(address)]">
+                                        <i class="bi " :class="[(address.set_default) ? 'bi bi-cart-check-fill' : 'bi-cart']"></i>
+                                    </button>
+                                    <!-- <i class="bi bi-bookmark-check-fill"></i> -->
                                     <button type="button" title="Edit Address" @click="editAddress(address)">
                                         <i class="ecicon eci-edit"></i>
                                     </button>
-                                    <button type="button" title="Edit Address" @click="deleteAddress(address.id)">
+                                    <button type="button" title="Delete Address" @click="deleteAddress(address.id)">
                                         <i class="ecicon eci-trash text-danger"></i>
                                     </button>
                                 </span>

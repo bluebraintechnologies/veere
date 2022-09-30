@@ -47,7 +47,7 @@ export default {
         addInCartItem(cid) {
             this.addCartItem([this, cid])
         },
-         decreaseInCartItem(cid) {
+        decreaseInCartItem(cid) {
             this.decreaseCartItem([this, cid])
         },
     },

@@ -7,7 +7,6 @@ export default {
     name: "Dashboard",
     props: {
        user:Object,
-       errors:String,
     },
     components: {
         AuthenticatedLayout,
@@ -21,7 +20,7 @@ export default {
                 password : '',
                 new_password: '',
                 confirm_password: '',
-                avatar:''
+                avatar:'',
             }),
         }
     },
@@ -50,18 +49,11 @@ export default {
                     data.append('avatar', this.form.avatar);
                     data.append('name', this.form.name);
                     data.append('phone', this.form.phone);
-                    axios.post('update-profile', data, config)
-                    .then((response) => {
-                        console.log('response', response.data)
+                    this.form.post('update-profile', {
+                        preserveScroll: true,
+                        onSuccess: () => this.resetForm(),
                     })
-                    // this.form.post(route('user.profile.update'),  {
-                    //     preserveScroll: true,
-                    //     forceFormData: true,
-                    //     onFinish: () => {
-                    //         this.form.reset('new_password', 'confirm_password', 'avatar'); 
-                    //         this.$toast.success('Profile updated successfully') 
-                    //     }                        
-                    // })
+                    
                 }else{
                     this.$toast.warning('Password is incorrect!!')
                 }
@@ -70,6 +62,13 @@ export default {
         },
         changeImage() {
             
+        },
+        resetForm(){
+            
+            // this.form.name = this.user.name;
+            // this.form.email = this.user.email;
+            // this.form.password = ''
+            // this.form.phone = this.user.mobile;
         }
     },
     mounted() {
@@ -97,7 +96,9 @@ export default {
 
                                 </div>
                                 <div class="ec-vendor-block-detail">
-                                    <img class="v-img cursor-pointer" :src="$page.props.auth.user.avatar" alt="image" >
+                                    <img class="v-img cursor-pointer" :src="'/avatars/' + $page.props.user.image" alt="image" v-if="$page.props.user.image">
+                                    <img class="v-img cursor-pointer" :src="$local_media_url+'1.jpg'" alt="image" v-else>
+                                    <!-- <img class="v-img cursor-pointer" :src="$page.props.auth.user.avatar" alt="image" > -->
                                     <h5 class="name">{{ $page.props.auth.user.name }}</h5>
                                 </div>
                                 <p>Hello <span> {{ $page.props.auth.user.name }}!</span></p>
@@ -116,7 +117,9 @@ export default {
                                             <ul>
                                                  <li>
                                                     <label class="text-uppercase">Profile Pic</label>
-                                                    <input class="pic23" type="file" @input="form.avatar = $event.target.files[0]" />
+                                                    <input class="pic23" type="file" @input="form.avatar = $event.target.files[0]" id="inputFile"/>
+                                                    <div class="error" v-if="form.errors.avatar">{{ form.errors.avatar }}</div>
+                                                    <small class="error">Note : if you upload any unappropriate or nude image , your account will be terminated immediately.</small>
                                                 </li>
                                                 <li>
                                                     <label class="text-uppercase">name</label>
@@ -157,7 +160,7 @@ export default {
                                         </div>
                                     </div>
                                     <div class="col-md-12 col-sm-12">
-                                        <button type="submit" class="btn btn-primary">Update Profile</button>
+                                        <button type="submit" class="btn btn-primary" :disabled="form.processing">Update Profile</button>
                                     </div>
                                 </div>
                             </form>
@@ -174,5 +177,9 @@ export default {
     cursor: pointer;
     padding-top: 9px;
     padding-left: 9px;
+}
+.error{
+    color: red;
+    font-size:small;
 }
 </style>

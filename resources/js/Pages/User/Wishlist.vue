@@ -13,11 +13,27 @@ export default {
         Pagination,
     },
     props:{
-        wishlists:Object|Array,
+        // wishlists:Object|Array,
+    },
+    data(){
+        return {
+            allWishlistItems : [],
+        }
     },
     computed: {
         ...mapGetters(['wishlistItems'])
     },
+    methods: {
+        ...mapActions(['getWishlistItems', 'removeWishlistItem']),
+        getWishlistItems(){
+            axios.get('/api/get-wishlist-items').then((response) => {
+                this.allWishlistItems = response.data
+            })
+        }
+    },
+    mounted() {
+        this.getWishlistItems()
+    }
 
 };
 </script>
@@ -33,12 +49,17 @@ export default {
             </div>
             <div class="ec-vendor-card-body">
                 <div class="row">
-                    <div class="col-lg-4 col-md-6 col-sm-6 col-xs-6 ec-product-content"  v-for="(pc,pk) in wishlists.data" :key="'fproduct'+pk">
-                        <single-grid-product :product="pc.product" ></single-grid-product>
+                    <div class="col-lg-4 col-md-6 col-sm-6 col-xs-6 ec-product-content"  v-for="(pc,pk) in allWishlistItems" :key="'fproduct'+pk">
+                        <single-grid-product :product="pc" ></single-grid-product>
                     </div>
-                    <pagination class="mt-6" :wishlists="wishlists" />
+                    <!-- <pagination class="mt-6" :wishlists="wishlists" /> -->
                 </div>
             </div>
         </div>
     </AuthenticatedLayout>
 </template>
+<style>
+    .ec-product-content{
+        width:25%;
+    }
+</style>

@@ -4,6 +4,7 @@ import CartButton from '@/Pages/User/Common/CartButton.vue';
 import WishlistButton from '@/Pages/User/Common/WishlistButton.vue';
 import Price from './Price.vue';
 import ProductImage from "./ProductImage.vue";
+import { Inertia } from '@inertiajs/inertia';
 
 export default {
     name: "Product Single Grid",
@@ -72,9 +73,9 @@ export default {
                 return 0
             }
         },
-        currency() {
-            return (this.currency.active_currency)?this.currency.active_currency.symbol+' ':'Rs. ';
-        },
+        // currency() {
+        //     return (this.currency.active_currency)?this.currency.active_currency.symbol+' ':'Rs. ';
+        // },
         category() {
             let ct = this.categoryItems.filter(ele => {
                 return ele.id == this.product.category_id
@@ -84,6 +85,11 @@ export default {
     },
     methods: {
         ...mapActions(["addCartItem"]),
+        deleteWishlistItem(id){
+            axios.post('/api/delete-wishlist-item',{id:id}).then((response) => {
+                location.reload()
+            })
+        }
     },
 };
 </script>
@@ -92,44 +98,40 @@ export default {
         <div class="ec-pro-image-outer">
             <div class="ec-pro-image">
                 <Link :href="route('product', product.slug)" class="image">
-                    <product-image class-name="main-image" :imgid="mainImage" :alt="product.name" />
-                    <product-image class-name="hover-image" :imgid="hoverImage" :alt="product.name" />
+                    <product-image :src="(product.image)?$media_url+product.image:$local_media_url+'product-image/50_2.jpg'" :alt="product.name"></product-image>
                 </Link>
+                <span class="flags" v-if="product.new_tag == 1">
+                    <span class="new">New</span>
+                </span>
+                <div class="ec-pro-actions">
+                    <a href="javascript:void(0)" @click="deleteWishlistItem(product.id)"><i class="ecicon eci-trash text-danger"></i></a>
+                </div>
+                <!-- <div class="ec-pro-actions">
+                    <wishlist-button :product="product"></wishlist-button>
+                </div> -->
             </div>
         </div>
         <div class="ec-pro-content">
 
             <h5 class="ec-pro-title">
-                <Link :href="route('product', product.slug)">{{ product.name }}</Link>
+                <Link :href="route('category',product.category_slug)"> {{ product.category }} </Link>
             </h5>
-            <h6 class="ec-pro-stitle" v-if="category">
-                <Link :href="route('products.category', category.slug)">{{ category.name }}</Link>
-            </h6>
+            <Link :href="route('product',product.slug)">
+                <h6 class="ec-pro-stitle">{{ product.name }}</h6>
+            </Link>
             <div class="ec-pro-rat-price">
-                <div class="ec-pro-rat-pri-inner">
-                    <span class="ec-price">
-                        <span class="new-price">
-                            <price :price="final_price" :currency="currency" />
-                        </span>
-                        <span class="old-price" v-if="final_price != product.unit_price">
-                            <price :price="product.unit_price" :currency="currency" />
-                        </span>
-                    </span>
-                    <!-- <span class="ec-pro-rating">
-                        <i class="ecicon eci-star fill"></i>
-                        <i class="ecicon eci-star fill"></i>
-                        <i class="ecicon eci-star fill"></i>
-                        <i class="ecicon eci-star-o"></i>
-                        <i class="ecicon eci-star-o"></i>
-                    </span> -->
-                </div>
+                <price :currency="currency" :price="product.price"></price>
             </div>
-            <div class="pro-hidden-block">
-                <div class="ec-pro-actions">
-                    <wishlist-button :product="product"></wishlist-button>
-                    <cart-button :product="product"></cart-button>
-                </div>
+            <div class="grid-card-btn">
+                <cart-button :product="product"></cart-button>
             </div>
         </div>
     </div>
 </template>
+<style>
+    .ec-pro-actions{
+        opacity:1 !important;
+        visibility: visible !important;
+        top: -36px !important;
+    }
+</style>

@@ -28,12 +28,12 @@ const actions = {
   }
 }
 const getters = {
-  wishlistItems: state => state.wishlistItems,
+    wishlistItems: state => state.wishlistItems,
 }
-const navModule = {
+const wishlistModule = {
     state,
     mutations,
     actions,
     getters
 }
-export default navModule;
+export default wishlistModule;

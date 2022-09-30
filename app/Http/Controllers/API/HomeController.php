@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Contact;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\ProductReview;
 use App\Models\Wishlist;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
 {
@@ -353,7 +355,7 @@ class HomeController extends Controller
         echo '<pre>'; print_r($query); echo '</pre>'; die;
     }
     public function getWishlistItems(){
-        $wishlists = Wishlist::select('product_id')->get()->toArray();
+        $wishlists = Wishlist::select('product_id')->where('user_id', Auth::user()->id)->get()->toArray();
         $wishlists = array_column($wishlists, 'product_id');
         
         $query = Product::leftJoin('brands', 'products.brand_id', '=', 'brands.id')
@@ -367,14 +369,18 @@ class HomeController extends Controller
                 ->whereIn('products.id', $wishlists);
         $products = $query->select(
                     'products.id',
-                    'products.name as product',
+                    'products.new_tag',
+                    'products.name',
+                    'products.slug',
                     'products.type',
                     'c1.name as category',
+                    'c1.slug as category_slug',
                     'c2.name as sub_category',
                     'units.actual_name as unit',
                     'brands.name as brand',
                     'tax_rates.name as tax',
                     'products.sku',
+                    'v.sub_sku',
                     'products.image',
                     'products.enable_stock',
                     'products.is_inactive',
@@ -383,7 +389,11 @@ class HomeController extends Controller
                     'products.product_custom_field2',
                     'products.product_custom_field3',
                     'products.product_custom_field4',
-                    )->get();
+                    'v.sell_price_inc_tax as price'
+                    )
+                    ->orderBy('products.name', 'asc')
+                    ->get();
+                // dd($products);
         return $products;
     }
     public function addProductToWishlist(Request $request){
@@ -404,9 +414,93 @@ class HomeController extends Controller
         $form = $request->form;
         $user = $request->user;
         $contact = Contact::where('id', $user['id'])->first();
-        if($form['password'] && Hash::make($form['password']) != $contact->password){
+        if($form['password'] == ''){
+            return ['status' => 'success'];    
+        }
+        if($form['password'] && Hash::check($form['password'], $contact->password)){
+            return ['status' => 'success'];
+        }
+        if($form['password'] && !Hash::check($form['password'], $contact->password)){
             return ['status' => 'fail'];
         }
         return ['status' => 'success'];
+    }
+    public function getSelectedCategoryProduct(Request $request){
+        $categories = $request->categories;
+        $pcategory = Category::whereIn('parent_id', $categories)->get();
+        if($pcategory){
+            $ncategory = $pcategory->pluck('id')->toArray();
+            $categories = array_merge($categories, $ncategory);
+        }
+        $products = Product::leftJoin('categories as c1', 'products.category_id', '=', 'c1.id')
+                            ->join('variations as v', 'v.product_id', '=', 'products.id')
+                            ->leftJoin('variation_location_details as vld', 'vld.variation_id', '=', 'v.id')
+                            ->where('products.type', '!=', 'modifier')
+                            ->where('products.not_for_selling', 0)
+                            ->whereIn('products.category_id',  $categories)
+                            ->where('products.is_inactive', 0)
+                            ->orderBy('products.new_tag', 'desc')
+                            ->select('products.id',
+                                    'products.new_tag',
+                                    'products.sale_start',
+                                    'products.sale_end',
+                                    'products.name',
+                                    'products.weight',
+                                    'products.slug',
+                                    'c1.name as category',
+                                    'c1.slug as category_slug',
+                                    'products.sku',
+                                    'products.image',
+                                    'products.discount_type',
+                                    'products.percent_discount',
+                                    'products.flat_discount',
+                                    'products.discount_start_date',
+                                    'products.discount_end_date',
+                                    'v.sub_sku',
+                                    'v.sell_price_inc_tax as price',                                    
+                                    )->get();
+            $p = array_column($products->toArray(), 'price');
+            sort($p);
+            $p = $p[count($p)-1];
+            $price_range = intval($p/100);
+
+            $wd = array_unique(array_column($products->toArray(), 'weight'));
+            sort($wd);
+            
+            $w = [];
+            foreach($wd as $value){
+                $w[] = floatval($value);
+            }
+            $weights = [];
+            $weights = $w;
+            return ['products' => $products, 'weights' => $weights, 'price_range' => $price_range];
+    }
+    public function submitProductReview(Request $request){
+        $form = $request->form;
+        $name = $form['name'];
+        $email = $form['email'];
+        $content = $form['content'];
+        $star = $form['star'];
+        $product_id = $form['product_id'];
+        if(ProductReview::where('email', 'like', $email)->where('product_id', $request->id)->count() > 0){
+            return ['status' => 'exist'];
+        }
+        ProductReview::create([
+            'name' => $name,
+            'email' => $email,
+            'content' => $content,
+            'star' => $star,
+            'product_id' => $product_id,
+        ]);
+        return ['status' => 'success'];
+    }
+    public function postalCodeDeliveryStatus(Request $request){
+        $postal_code = $request->postal_code;
+        $id = $request->id;
+        $record = DB::table('product_locations')->where('product_id', $id)->count();
+        if($record){
+            return ['status' => 'success'];
+        }
+        return ['status' => 'fail'];
     }
 }

@@ -67,5 +67,31 @@ class AddressController extends Controller
         Address::where('id', $request->id)->update($data);
         return ['status' => 'success'];
     }
-
+    public function defaultDeliveryAddress(Request $request){
+        $address = $request->address;
+        Address::where('user_id', Auth::user()->id)->update(['set_default' => null]);
+        Address::where('user_id', Auth::user()->id)->where('id', $address['id'])->update(['set_default' => 1]);        
+        return ['status' => 'success'];
+    }
+    public function defaultBillingAddress(Request $request){
+        $address = $request->address;
+        Address::where('user_id', Auth::user()->id)->update(['set_default_billing' => null]);
+        Address::where('user_id', Auth::user()->id)->where('id', $address['id'])->update(['set_default_billing' => 1]);        
+        return ['status' => 'success'];
+    }
+    public function setDefaultShippingBillingAddress(Request $request){
+        $shipAddress = $request->shipAddress;
+        Address::where('user_id', Auth::user()->id)->update(['set_default' => null]);
+        Address::where('user_id', Auth::user()->id)->where('id', $shipAddress)->update(['set_default' => 1]);   
+        $billingAddress = $request->billingAddress;
+        Address::where('user_id', Auth::user()->id)->update(['set_default_billing' => null]);
+        Address::where('user_id', Auth::user()->id)->where('id', $billingAddress)->update(['set_default_billing' => 1]);   
+        return ['status' => 'success'];
+    }
+    public function unsetDefaultShippingBillingAddress (){
+        Address::where('user_id', Auth::user()->id)->update(['set_default' => null]);
+        Address::where('user_id', Auth::user()->id)->update(['set_default_billing' => null]);
+        
+        return ['status' => 'success'];
+    }
 }
