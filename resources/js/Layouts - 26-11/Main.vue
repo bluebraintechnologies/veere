@@ -1,0 +1,136 @@
+<script>
+import ThemeHeader from "./Elements/Header.vue";
+import ThemeFooter from "./Elements/Footer.vue";
+import SideCart from "./Elements/SideCart.vue";
+import { mapActions, mapGetters } from 'vuex';
+
+export default {
+    components: {
+        ThemeHeader,
+        ThemeFooter,
+        SideCart,
+    },
+    props: {
+        categories: [Array, Object],
+    },
+    data() {
+        return {
+            sideCartStatus: false,
+            showCookieBanner : true,
+            cookieAccepted: false,
+            showNavigation:false,
+        };
+    },
+    computed: {
+        ...mapGetters(['wishlistItems', 'cartItems', 'cookieStatus', 'cartQuantity'])
+    },
+    methods: {
+        ...mapActions(['getWishlistItems', 'getCartItems', 'getDealItems', 'getStockDetails', 'setCookieStatus']),
+        displaySideCart() {
+            this.sideCartStatus = !this.sideCartStatus;
+        },
+        changeNavStatus() {
+            this.showNavigation = !this.showNavigation;
+        },
+        saveCookieStatus(){
+            // this.setCookieStatus();
+            localStorage.setItem("user_accept_cookie", 'accepted')
+            this.cookieAccepted = localStorage.getItem("user_accept_cookie")
+        }
+    },
+    created(){
+        this.getStockDetails();
+        this.getDealItems();
+        this.getCartItems();
+        this.cookieAccepted = localStorage.getItem("user_accept_cookie")
+    },
+    mounted() {
+        if(this.$page.props.auth.user) {
+        }
+        this.getWishlistItems();
+    }
+};
+</script>
+
+<template>
+    <div>
+        <theme-header @show-sidecart="displaySideCart()" @show-mobilemenu="changeNavStatus()" :showNavigation="showNavigation" />
+        <side-cart @close-sidebar="displaySideCart()" :showCart="sideCartStatus" />
+        <slot />
+        <theme-footer />
+        <div class="ec-nav-toolbar">
+            <div class="container">
+                <div class="ec-nav-panel">
+                    <div class="ec-nav-panel-icons">
+                        <a href="javascript:;" @click="showNavigation = !showNavigation" class="navbar-toggler-btn ec-header-btn ec-side-toggle">
+                            <i class="ecicon eci-bars"></i>
+                        </a>
+                    </div>
+                    <div class="ec-nav-panel-icons">
+                        <a href="javascript:;" @click="sideCartStatus = !sideCartStatus" class="toggle-cart ec-header-btn ec-side-toggle">
+                            <img src="/images/icons/cart.svg" class="svg_img header_svg" alt="" />
+                            <span class="ec-cart-noti">{{cartQuantity}}</span>
+                        </a>
+                    </div>
+                    <div class="ec-nav-panel-icons">
+                        <Link :href="route('home')" class="ec-header-btn">
+                            <img src="/images/icons/home.svg" class="svg_img header_svg" alt="" />
+                        </Link>
+                    </div>
+                    <div class="ec-nav-panel-icons">
+                        <Link :href="route('wishlist')" class="ec-header-btn">
+                            <img src="/images/icons/wishlist.svg" class="svg_img header_svg" alt="" />
+                            <span class="ec-cart-noti">0</span>
+                        </Link>
+                    </div>
+                    <div class="ec-nav-panel-icons">
+                        <Link :href="route('login')" class="ec-header-btn">
+                            <img src="/images/icons/enter.png" class="svg_img header_svg" alt="" />
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-center container mt-5 cookie-popup" v-if="cookieAccepted != 'accepted'">
+            <div class="row">
+                <div class="col-md-10">
+                    <div class="d-flex flex-row justify-content-between align-items-center card cookie p-3">
+                        <div class="d-flex flex-row align-items-center">
+                            <div class="ml-2 mr-2">
+                                <b>Do you like cookies?</b> 🍪 We use cookies to ensure you get the best experience on our website.
+                            </div>
+                        </div>
+                        <div><button class="btn btn-dark" type="button" @click="saveCookieStatus()">Okay</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+<style>
+    .card {
+        flex-direction: column;
+        min-width: 0;
+        color: #000;
+        word-wrap: break-word;
+        background-color: #fff;
+        background-clip: border-box;
+        border: 1px solid #fff;
+        border-radius: 6px;
+        -webkit-box-shadow: 0px 0px 5px 0px rgb(249, 249, 250);
+        -moz-box-shadow: 0px 0px 5px 0px rgba(212, 182, 212, 1);
+        box-shadow: 0px 0px 5px 0px rgb(161, 163, 164);
+    }
+
+    .learn-more {
+        text-decoration: none;
+        color: #000;
+        margin-top: 8px;
+    }
+
+    .learn-more:hover {
+        text-decoration: none;
+        color: blue;
+        margin-top: 8px;
+    }
+</style>

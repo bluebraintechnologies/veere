@@ -4,7 +4,7 @@
             <Carousel :settings='settings' :breakpoints='breakpoints' class="swiper-wrapper">
                 <Slide class="ec-slide-item swiper-slide"  v-for="(sdata,index) in sliders" :key="'slide-'+index">
                     <div class='carousel__item'>
-                        <img :src="sdata.image" />    
+                        <img :src="this.$banner_token+sdata.image" />
                     </div>
                 </Slide>
                 <template #addons>
@@ -51,3 +51,8 @@ export default {
     },
 };
 </script>
+<style scoped>
+.ec-slider .carousel__slide {
+    margin:0
+}
+</style>

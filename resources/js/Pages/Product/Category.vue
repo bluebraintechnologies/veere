@@ -121,9 +121,15 @@ export default {
         getSelectedCategroyProduct(){
             if(this.searchCategories.length > 1)
             {
-                this.loader = true;
             }
-            axios.post('/api/get-selected-category-product', {categories : this.searchCategories}).then((response) => {
+            this.loader = true;
+            let location
+            if(localStorage.getItem("location")){
+                location = localStorage.getItem("location")
+            }else if(localStorage.getItem("temp_location")){
+                location = localStorage.getItem("temp_location")
+            }
+            axios.post('/api/get-selected-category-product', {categories : this.searchCategories, location : location}).then((response) => {
                 this.products = response.data.products
                 this.weights = response.data.weights
                 this.price_range = response.data.price_range
@@ -176,7 +182,7 @@ export default {
                         <div class="ec-pro-list-top d-flex">
                             <div class="col-md-6 ec-grid-list">
                                 <div class="ec-gl-btn">
-                                    {{ products.length }} items found
+                                    {{ sorted_products.length }} items found
                                 </div>
                             </div>
                             <div class="col-md-6 ec-sort-select">

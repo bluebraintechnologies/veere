@@ -104,7 +104,7 @@
                                                 </span>
                                             </div>
                                             <div>
-                                                <span class="text-left">Tax (CGST + SGST)</span>
+                                                <span class="text-left">Tax (GST)</span>
                                                 <span class="text-right">
                                                     <price :price="cartTotalTax" :currency="currencyIcon"></price>
                                                 </span>

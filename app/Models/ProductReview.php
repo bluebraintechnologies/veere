@@ -10,4 +10,7 @@ class ProductReview extends Model
     use HasFactory;
     protected $table = 'product_reviews';
     protected $guarded = [];    
+    public function contact(){
+        return $this->belongsTo('App\Models\Contact', 'contact_id');
+    }
 }

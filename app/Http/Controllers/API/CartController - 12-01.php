@@ -1,0 +1,651 @@
+<?php
+
+namespace App\Http\Controllers\API;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Product;
+use App\Models\Category;
+use App\Models\Wishlist;
+use App\Models\Variation;
+use App\Models\Cart;
+use Auth;
+use Session;
+use Cookie;
+use Illuminate\Support\Str;
+use App\Http\Controllers\API\HomeController;
+use Carbon\Carbon;
+class CartController extends Controller
+{
+    public function index(Request $request){
+        
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            if($request->session()->get('temp_user_id')) {
+                $userCartItems = Cart::where('user_id', Auth::user()->id)->get()->pluck('product_id')->toArray(); 
+                $userSessionCartItems = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->get()->pluck('product_id')->toArray();
+                $result = array_intersect($userCartItems, $userSessionCartItems);
+                if($result){
+                    Cart::where('temp_user_id', $request->session()->get('temp_user_id'))->whereIn('product_id', $result)->delete();
+                }
+                $cartItems = Cart::where('temp_user_id', $request->session()->get('temp_user_id'))
+                        ->update(
+                                [
+                                    'user_id' => $user_id,
+                                    'temp_user_id' => null
+                                ]
+                );
+                
+                Session::forget('temp_user_id');
+            }
+            $cartItems = Cart::where('user_id', $user_id)->get()->pluck('product_id')->toArray();
+            
+            $carts = $this->__GetCartItem($request, $user_id, 0);
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = ($temp_user_id != null) ?  $this->__GetCartItem($request, 0, $temp_user_id) : [] ;
+        }
+        return ['status' => 'success', 'items' => $carts];        
+    }
+    public function checkStock($product_id){
+        $for = 'view_product';
+        $filters = [
+            "product_id" => $product_id,
+            "not_for_selling" => 0,
+            "show_manufacturing_data" => 0,
+        ];
+        $business_id = 1;
+        $query = Variation::join('products as p', 'p.id', '=', 'variations.product_id')
+                  ->join('units', 'p.unit_id', '=', 'units.id')
+                  ->leftjoin('variation_location_details as vld', 'variations.id', '=', 'vld.variation_id')
+                  ->leftjoin('business_locations as l', 'vld.location_id', '=', 'l.id')
+                  ->join('product_variations as pv', 'variations.product_variation_id', '=', 'pv.id')
+                  ->where('p.business_id', $business_id)
+                  ->whereIn('p.type', ['single']);
+                  $products = $query->select(
+                    
+                    DB::raw("SUM(vld.qty_available) as stock")
+                    
+                )->groupBy('variations.id', 'vld.location_id');
+        return $products->where('p.id', $filters['product_id'])->groupBy('l.id')->get()->toArray();
+    }
+    public function store(Request $request)
+    {
+        
+        $product = $this->__GetProduct($request->id);
+                   
+        $carts = array();
+        $data = array();
+        $item_exists_in_cart = 0;
+        $item_exists_in_cart_qty = 0;
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $data['user_id'] = $user_id;
+            Cart::where('user_id', $user_id)->update([
+                'pay_reward_points' => null
+            ]);
+            $carts = Cart::where('user_id', $user_id)->get();
+        } else {
+            if($request->session()->get('temp_user_id')) {
+                $temp_user_id = $request->session()->get('temp_user_id');
+            } else {
+                $temp_user_id = Str::random(32);
+                $request->session()->put('temp_user_id', $temp_user_id);
+            }
+            $data['temp_user_id'] = $temp_user_id;
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
+        if(count($carts) > 0){
+            foreach($carts as $citem){
+                if($citem['product_id'] == $product->id){
+                    $item_exists_in_cart = 1;
+                    $item_exists_in_cart_qty = $citem['quantity'];
+                }
+            }
+        }
+        $data['product_id'] = $product->id;
+        
+        $str = '';
+        $tax = 0;
+        
+
+        $data['quantity'] = 1;
+        $data['price'] = $product->price;
+                
+        $data['oldPrice'] = $product->price;
+        $oldPrice = $data['price'];
+
+        $netPercentDiscount = 0;
+        $netFlatDiscount = 0;
+        $data['standard_product_discount_type'] = $product->standard_product_discount_type;
+        $data['standard_discount'] = $product->standard_discount;
+        
+        if($product->discount_start_date && $product->discount_end_date){
+            $start_date = Carbon::createFromFormat('Y-m-d', $product->discount_start_date);
+            $end_date = Carbon::createFromFormat('Y-m-d', $product->discount_end_date);
+            $today = Carbon::createFromFormat('Y-m-d', date('Y-m-d', strtotime('now')));
+            if($start_date->lte($today) && $today->lte($end_date)){
+                $data['product_discount_start_date'] = $product->discount_start_date;
+                $data['product_discount_end_date'] = $product->discount_end_date;
+                $data['discount_type'] = $product->discount_type;
+                if($product->discount_type == 'percent'){
+                    $netPercentDiscount = $product->percent_discount + $netPercentDiscount;
+                    $data['product_discount'] = $oldPrice*$product->percent_discount/100;
+                    $data['percent_discount'] = $product->percent_discount;
+                }else{
+                    $netFlatDiscount = $product->flat_discount + $netFlatDiscount;
+                    $data['product_discount'] = $netFlatDiscount;
+                    $data['flat_discount'] = $product->flat_discount;
+                }
+            }
+        }        
+
+        $deals_discount_type = null;
+        $deals_discount_amount = null;
+        $deals_blend_product_discount = null; 
+        
+        $msg = '';
+        $data['deals_discount'] = null;
+        if($request->dealsProduct){
+            $dealsProduct = $request->dealsProduct;
+            if(in_array($product->id, $dealsProduct)){
+                $k = array_search ($product->id, $dealsProduct);
+                $dealsProductDiscount = $request->dealsProductDiscount;
+                $deals_discount_type = $dealsProductDiscount[$k]['discount_type'];
+                $deals_discount_amount = $dealsProductDiscount[$k]['discount_amount'];
+                $deals_blend_product_discount = $dealsProductDiscount[$k]['blend_product_discount'];
+                
+                $data['deal_discount_start_date'] = date('Y-m-d', strtotime($dealsProductDiscount[$k]['deal_start_date']));
+                $data['dealt_discount_end_date'] = date('Y-m-d', strtotime($dealsProductDiscount[$k]['deal_end_date']));
+                $data['deal_id'] = $dealsProductDiscount[$k]['deal_id'];
+                
+                if ($deals_blend_product_discount == 1) {
+                    if ($deals_discount_type == 'percentage') {
+                        if($item_exists_in_cart_qty + 1 >= $dealsProductDiscount[$k]['min_qty']){
+                            $netPercentDiscount = $deals_discount_amount + $netPercentDiscount;
+                            $data['deals_discount'] = $oldPrice*$deals_discount_amount/100;
+                        }else{
+                            $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                        }
+                    }else{
+                        if ($item_exists_in_cart_qty + 1 >= $dealsProductDiscount[$k]['min_qty']) {
+                            $netFlatDiscount = $deals_discount_amount + $netFlatDiscount;
+                            $data['deals_discount'] = $deals_discount_amount;
+                        }else{
+                            $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                        }
+                    }
+                }else{
+                    $data['product_discount_start_date'] = null;
+                    $data['product_discount_end_date'] = null;
+                    $data['discount_type'] = null;
+                    $data['product_discount'] = null;
+                    $data['percent_discount'] = null;
+                    $data['flat_discount'] = null;
+                    if ($deals_discount_type == 'percentage') {
+                        if ($item_exists_in_cart_qty + 1 >= $dealsProductDiscount[$k]['min_qty']) {
+                            $netPercentDiscount = $deals_discount_amount;
+                            $data['deals_discount'] = $oldPrice*$deals_discount_amount/100;
+                            $netFlatDiscount = 0;
+                        }else{
+                            $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                        }
+                    }else{
+                        if ($item_exists_in_cart_qty + 1 >= $dealsProductDiscount[$k]['min_qty']) {
+                            $netPercentDiscount = 0;
+                            $netFlatDiscount = $deals_discount_amount;
+                            $data['deals_discount'] = $deals_discount_amount;
+                        }else{
+                            $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                        }
+                    }
+                    $data['product_discount_start_date'] = null;
+                    $data['product_discount_end_date'] = null;
+                }
+            }
+        }
+        if($product->standard_product_discount_type == 'percent'){
+            $netPercentDiscount = $netPercentDiscount+ $product->standard_discount;
+        }
+        if($product->standard_product_discount_type == 'flat'){
+            $netFlatDiscount =  $netFlatDiscount + $product->standard_discount;
+        }
+        if(is_null($data['deals_discount'])){            
+            $data['deal_discount_start_date'] = null;
+            $data['dealt_discount_end_date'] = null;
+            $data['deal_id'] = null;
+        }
+        if($netPercentDiscount > 0){
+            $data['price'] =  number_format($data['price']*(100 - $netPercentDiscount)/100, 2);
+        }
+        if($netFlatDiscount){
+            $data['price'] = $data['price'] - $netFlatDiscount;
+        }
+        $data['discount'] = $oldPrice - $data['price'];
+        $tax = $product->tax;
+        $itemTax = $data['price']*$tax/(100+$tax);
+        $data['tax'] = intval($itemTax*100)/100;
+        // dd($data);
+        if($carts && count($carts) > 0){
+            $foundInCart = false;
+
+            foreach ($carts as $key => $cartItem)
+            {
+                if($cartItem->product_id == $request->id) {
+                    $cartItem->quantity += $request->quantity;
+                    $cartItem->tax = $data['tax'];
+                    $cartItem->discount = $data['discount'];
+                    $cartItem->price = $data['price'];
+                    $cartItem->standard_product_discount_type = $data['standard_product_discount_type'];
+                    $cartItem->standard_discount = $data['standard_discount'];
+                    $cartItem->discount_type = (isset($data['discount_type'])) ? $data['discount_type'] : null;
+                    $cartItem->percent_discount = (isset($data['percent_discount'])) ? $data['percent_discount'] : null;
+                    $cartItem->flat_discount = (isset($data['flat_discount'])) ? $data['flat_discount'] : null;
+                    $cartItem->product_discount = (isset($data['product_discount'])) ? $data['product_discount'] : null;
+                    $cartItem->product_discount_start_date = (isset($data['product_discount_start_date'])) ? $data['product_discount_start_date'] : null;
+                    $cartItem->product_discount_end_date = (isset($data['product_discount_end_date'])) ? $data['product_discount_end_date'] : null;
+                    
+                    $cartItem->deal_id = (isset($data['deals_discount'])) ? $data['deal_id'] : null;
+                    $cartItem->deal_discount_start_date = (isset($data['deals_discount'])) ? $data['deal_discount_start_date'] : null;
+                    $cartItem->dealt_discount_end_date = (isset($data['deals_discount'])) ? $data['dealt_discount_end_date'] : null;
+                    $cartItem->deals_discount = (isset($data['deals_discount'])) ? $data['deals_discount'] : null;
+
+                    $cartItem->save();
+                    $foundInCart = true;
+                }
+            }
+            if (!$foundInCart) {
+                Cart::create($data);
+            }
+        }
+        else{
+            Cart::create($data);
+        }
+        
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $carts = $this->__GetCartItem($request, $user_id, 0);
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = $this->__GetCartItem($request, 0, $temp_user_id);
+        }
+        
+        return ['status' => 'success', 'items' => $carts, 'msg' => $msg];
+    }
+    public function updateCartItem($request){
+        $d = (new HomeController)->getDealItems();
+        $dp = $d['products'];
+        $dpd = $d['toDealProduct'];
+        
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $data['user_id'] = $user_id;
+            $cart = Cart::where('user_id', $user_id)->get();
+        } else {
+            if($request->session()->get('temp_user_id')) {
+                $temp_user_id = $request->session()->get('temp_user_id');
+            } else {
+                $temp_user_id = Str::random(32);
+                $request->session()->put('temp_user_id', $temp_user_id);
+            }
+            $data['temp_user_id'] = $temp_user_id;
+            $cart = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
+        foreach($cart as $citem){    
+            $product = $this->__GetProduct($citem['product_id']);
+                       
+            $data['price'] = $product->price;
+            $data['oldPrice'] = $product->price;
+            $oldPrice = $data['price'];
+            $netPercentDiscount = 0;
+            $netFlatDiscount = 0;
+            $data['standard_product_discount_type'] = $product->standard_product_discount_type;
+            $data['standard_discount'] = $product->standard_discount;
+            
+            if ($product->discount_start_date && $product->discount_end_date) {
+                $start_date = Carbon::createFromFormat('Y-m-d', $product->discount_start_date);
+                $end_date = Carbon::createFromFormat('Y-m-d', $product->discount_end_date);
+                $today = Carbon::createFromFormat('Y-m-d', date('Y-m-d', strtotime('now')));
+                
+                if($start_date->lte($today) && $today->lte($end_date)) {
+                    $data['product_discount_start_date'] = $product->discount_start_date;
+                    $data['product_discount_end_date'] = $product->discount_end_date;
+                    $data['discount_type'] = $product->discount_type;
+                    if ($product->discount_type == 'percent') {
+                        $netPercentDiscount = $product->percent_discount + $netPercentDiscount;
+                        $data['product_discount'] = $oldPrice*$product->percent_discount/100;
+                        $data['percent_discount'] = $product->percent_discount;
+                    } else {
+                        $netFlatDiscount = $product->flat_discount + $netFlatDiscount;
+                        $data['product_discount'] = $netFlatDiscount;
+                        $data['flat_discount'] = $product->flat_discount;
+                    }
+                }
+            }       
+            $deals_discount_type = null;
+            $deals_discount_amount = null;
+            $deals_blend_product_discount = null; 
+            
+            $msg = '';
+            $data['deals_discount'] = null;
+            $dealsProduct = $d['products'];
+            $dealsProductDiscount = $d['toDealProduct'];
+            $data['deal_dis'] = null;
+            if($dealsProduct){
+                $dealsProduct = $dealsProduct;
+                if(in_array($product->id, $dealsProduct)){
+                    $k = array_search ($product->id, $dealsProduct);
+                    $dealsProductDiscount = $dealsProductDiscount;
+                    $deals_discount_type = $dealsProductDiscount[$k]['discount_type'];
+                    $deals_discount_amount = $dealsProductDiscount[$k]['discount_amount'];
+                    $deals_blend_product_discount = $dealsProductDiscount[$k]['blend_product_discount'];
+                                        
+                    $data['deal_discount_start_date'] = date('Y-m-d', strtotime($dealsProductDiscount[$k]['deal_start_date']));
+                    $data['dealt_discount_end_date'] = date('Y-m-d', strtotime($dealsProductDiscount[$k]['deal_end_date']));
+                    $data['deal_id'] = $dealsProductDiscount[$k]['deal_id'];
+                    if ($deals_blend_product_discount == 1) {
+                        if ($deals_discount_type == 'percentage') {
+                            if($citem['quantity'] >= $dealsProductDiscount[$k]['min_qty']){
+                                $netPercentDiscount = $deals_discount_amount + $netPercentDiscount;
+                                $data['deals_discount'] = $oldPrice*$deals_discount_amount/100;
+                               
+                            }else{
+                                $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                            }
+                        }else{
+                            if ($citem['quantity'] >= $dealsProductDiscount[$k]['min_qty']) {
+                                $netFlatDiscount = $deals_discount_amount + $netFlatDiscount;
+                                $data['deals_discount'] = $deals_discount_amount;
+                               
+                            }else{
+                                $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                            }
+                        }
+                    }else{
+                        $data['product_discount_start_date'] = null;
+                        $data['product_discount_end_date'] = null;
+                        $data['discount_type'] = null;
+                        $data['product_discount'] = null;
+                        $data['percent_discount'] = null;
+                        $data['flat_discount'] = null;
+                        if ($deals_discount_type == 'percentage') {
+                            if ($citem['quantity'] >= $dealsProductDiscount[$k]['min_qty']) {
+                                $netPercentDiscount = $deals_discount_amount;
+                                $data['deals_discount'] = $oldPrice*$deals_discount_amount/100;
+                                $netFlatDiscount = 0;
+                            }else{
+                                $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                            }
+                        }else{
+                            if ($citem['quantity'] >= $dealsProductDiscount[$k]['min_qty']) {
+                                $netPercentDiscount = 0;
+                                $netFlatDiscount = $deals_discount_amount;
+                                $data['deals_discount'] = $deals_discount_amount;
+                                
+                            }else{
+                                $msg = 'You need to add min '.$dealsProductDiscount[$k]['min_qty'].' item to get this deal';
+                            }
+                        }
+                        $data['product_discount_start_date'] = null;
+                        $data['product_discount_end_date'] = null;
+                    }
+                }
+            }
+            if($product->standard_product_discount_type == 'percent'){
+                $netPercentDiscount = $netPercentDiscount + $product->standard_discount;
+            }
+            if($product->standard_product_discount_type == 'flat'){
+                $netFlatDiscount = $netFlatDiscount + $product->standard_discount;
+            }
+            if(is_null($data['deals_discount'])){            
+                $data['deal_discount_start_date'] = null;
+                $data['dealt_discount_end_date'] = null;
+                $data['deal_id'] = null;
+            }
+            if($netPercentDiscount > 0){
+                $data['price'] =  number_format($data['price']*(100 - $netPercentDiscount)/100, 2);
+            }
+            if($netFlatDiscount){
+                $data['price'] = $data['price'] - $netFlatDiscount;
+            }
+            $data['discount'] = $oldPrice - $data['price'];
+
+            $tax = $product->tax;
+            $itemTax = $data['price']*$tax/(100+$tax);
+            $data['tax'] = intval($itemTax*100)/100;
+
+            Cart::where('id', $citem['id'])->update([          
+                'tax' => $data['tax'],
+                'price' => ($data['price']) ? $data['price'] : null,
+                'discount' => ($data['discount']) ? $data['discount'] : null,
+                
+                'discount_type' => (isset($data['discount_type'])) ? $data['discount_type'] : null,
+                'percent_discount' => (isset($data['percent_discount'])) ? $data['percent_discount'] : null,
+                'flat_discount' => (isset($data['flat_discount'])) ? $data['flat_discount'] : null,
+                'product_discount' => (isset($data['product_discount'])) ? $data['product_discount'] : null,
+                'product_discount_start_date' =>( isset($data['product_discount_start_date'])) ? $data['product_discount_start_date'] : null,
+                'product_discount_end_date' => (isset($data['product_discount_end_date'])) ? $data['product_discount_end_date'] : null,
+
+                'deal_id' => (isset($data['deals_discount'])) ? $data['deal_id'] : null,
+                'deal_discount_start_date' => (isset($data['deals_discount'])) ? $data['deal_discount_start_date'] : null,
+                'dealt_discount_end_date' => (isset($data['deals_discount'])) ? $data['dealt_discount_end_date'] : null,
+                'deals_discount' => (isset($data['deals_discount'])) ? $data['deals_discount'] : null,
+
+                
+            ]);
+        }
+    }
+    public function updateNew($id, Request $request)
+    {   
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $data['user_id'] = $user_id;
+            $cart = Cart::where('user_id', $user_id)->where('id', $id)->first();
+        } else {
+            if($request->session()->get('temp_user_id')) {
+                $temp_user_id = $request->session()->get('temp_user_id');
+            } else {
+                $temp_user_id = Str::random(32);
+                $request->session()->put('temp_user_id', $temp_user_id);
+            }
+            $data['temp_user_id'] = $temp_user_id;
+            $cart = Cart::where('temp_user_id', $temp_user_id)->where('id', $id)->first();
+        }
+        if($cart->quantity == 0){
+            return false;
+        }
+        $cart->quantity = $cart->quantity-1;
+        $cart->save();
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $carts = $this->__GetCartItem($request, $user_id, 0);
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = $this->__GetCartItem($request, 0, $temp_user_id);
+        }
+        return ['status' => 'success', 'items' => $carts];
+    }
+    public function update($id, Request $request)
+    {   
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $data['user_id'] = $user_id;
+            $cart = Cart::where('user_id', $user_id)->where('id', $id)->first();
+        } else {
+            if($request->session()->get('temp_user_id')) {
+                $temp_user_id = $request->session()->get('temp_user_id');
+            } else {
+                $temp_user_id = Str::random(32);
+                $request->session()->put('temp_user_id', $temp_user_id);
+            }
+            $data['temp_user_id'] = $temp_user_id;
+            $cart = Cart::where('temp_user_id', $temp_user_id)->where('id', $id)->first();
+        }
+        
+        if($cart->quantity >= 2) {
+            $cart->quantity = $cart->quantity-1;
+            $cart->save();
+        } else {
+            $cart = Cart::where('id', $id)->delete();
+        }
+       $this->updateCartItem($request);
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $carts = $this->__GetCartItem($request, $user_id, 0);
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = $this->__GetCartItem($request, 0, $temp_user_id);
+        }
+        return ['status' => 'success', 'items' => $carts];
+    }
+    public function destroy($id, Request $request)
+    {
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $data['user_id'] = $user_id;
+            $cart = Cart::where('user_id', $user_id)->where('id', $id)->first();
+        } else {
+            if($request->session()->get('temp_user_id')) {
+                $temp_user_id = $request->session()->get('temp_user_id');
+            } else {
+                $temp_user_id = Str::random(32);
+                $request->session()->put('temp_user_id', $temp_user_id);
+            }
+            $data['temp_user_id'] = $temp_user_id;
+            $cart = Cart::where('temp_user_id', $temp_user_id)->where('id', $id)->first();
+        }
+        
+        $cart = Cart::where('id', $id)->delete();
+        
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            $carts = $this->__GetCartItem($request, $user_id, 0);
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = $this->__GetCartItem($request, 0, $temp_user_id);
+        }
+            
+        return ['status' => 'success', 'items' => $carts];
+    }
+
+    private function __GetCartItem(Request $request, $uid = null, $tuid = null)
+    {
+        if($uid == 0) {
+            $cart = Cart::where('temp_user_id', $request->session()->get('temp_user_id'));
+        } else {
+            $cart = Cart::where('user_id',  Auth::user()->id)->select('carts.id', 'carts.product_id');
+        }
+        
+        $cart_data = $cart->leftJoin('products', 'carts.product_id', '=', 'products.id')
+                        ->leftJoin('categories as c1', 'products.category_id', '=', 'c1.id')
+                        ->join('variations as v', 'v.product_id', '=', 'products.id')
+                        ->leftJoin('variation_location_details as vld', 'vld.variation_id', '=', 'v.id')
+                        ->where('products.type', '!=', 'modifier')
+                        // ->where('products.featured', 1)
+                        // ->where('products.not_for_selling', 0)
+                        // ->where('products.is_inactive', 0)
+                        ->select('carts.*',
+                                'products.new_tag',
+                                'products.sale_start',
+                                'products.sale_end',
+                                'products.name',
+                                'products.slug',
+                                'c1.name as category',
+                                'c1.slug as category_slug',
+                                'products.sku',
+                                'products.image',
+                                'v.sub_sku',
+                                // 'v.sell_price_inc_tax as price'
+                                )
+                                ->orderBy('carts.id', 'asc')
+                                ->get();        
+        return $cart_data;
+    }
+
+    private function __GetProduct($pid = null)
+    {
+        // dd($pid);
+        return Product::leftJoin('categories as c1', 'products.category_id', '=', 'c1.id')
+                            ->join('variations as v', 'v.product_id', '=', 'products.id')
+                            ->leftJoin('variation_location_details as vld', 'vld.variation_id', '=', 'v.id')
+                            ->leftJoin('tax_rates', 'tax_rates.id', '=', 'products.tax')
+                            ->where('products.type', '!=', 'modifier')
+                            ->where('products.not_for_selling', 0)
+                            ->where('products.id', $pid)
+                            ->where('products.is_inactive', 0)
+                            ->select('products.id',
+                                'products.new_tag',
+                                'products.sale_start',
+                                'products.sale_end',
+                                'products.name',
+                                'products.weight',
+                                'products.slug',
+                                'c1.name as category',
+                                'c1.slug as category_slug',
+                                'products.standard_product_discount_type',
+                                'products.standard_discount',
+                                'products.sku',
+                                'products.image',
+                                'products.discount_type',
+                                'products.percent_discount',
+                                'products.flat_discount',
+                                'products.discount_start_date',
+                                'products.discount_end_date',
+                                'v.sub_sku',
+                                'v.sell_price_inc_tax as price',
+                                'tax_rates.amount as tax'
+                                 )
+                            ->first();
+    }
+
+    public function updateAddress(Request $request)
+    {
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            Cart::where('user_id', $user_id)->update(['address_id' => $request->address_id]);
+            $carts = Cart::where('user_id', $user_id)->get();
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            Cart::where('user_id', $user_id)->update(['address_id' => $request->address_id]);
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
+
+        return ['status' => 'success', 'items' => $carts];
+    }
+
+    public function updateBillingAddress(Request $request)
+    {
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            Cart::where('user_id', $user_id)->update(['billing_address_id' => $request->address_id]);
+            $carts = Cart::where('user_id', $user_id)->get();
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            Cart::where('user_id', $user_id)->update(['billing_address_id' => $request->address_id]);
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
+
+        return ['status' => 'success', 'items' => $carts];
+    }
+
+    public function updateDeliveryTiming(Request $request)
+    {
+        if(auth()->user() != null) {
+            $user_id = Auth::user()->id;
+            Cart::where('user_id', $user_id)->update(['delivery_time' => $request->timing]);
+            $carts = Cart::where('user_id', $user_id)->get();
+        } else {
+            $temp_user_id = $request->session()->get('temp_user_id');
+            Cart::where('user_id', $user_id)->update(['delivery_time' => $request->timing]);
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+        }
+
+        return ['status' => 'success', 'items' => $carts];
+    }
+    public function payWithRewardPoints(Request $request){
+        Cart::where('user_id', Auth::user()->id)->update(['pay_reward_points' => $request->pay_reward_points]);
+        $items = Cart::where('user_id', Auth::user()->id)->get();
+        return ['status' => true, 'message' => 'Order amount has been modified', 'items' => $items];
+    }
+}

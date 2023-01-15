@@ -1,0 +1,29 @@
+.eccart-pro-items li .ec-pro-content .cart_pro_title{
+    line-height: 19px;
+}
+.discount-flex-item-side-cart{
+    font-weight: 300 !important;
+    color: #22d381;
+}
+.cart-button{
+    padding: 6px 35px;
+}
+.ec_qtybtn{
+    padding: 8px 13px;
+}
+.out-off-stock-btn{
+    background-color: #fb923c;
+    border-radius: 5px;
+    color: black;
+}
+.product-property-list{
+    list-style-type: disclosure-closed;
+}
+.ec-pro-image{
+    height: 260px;
+    overflow: hidden;
+}
+/* css for offer page */
+.banner-full-margin{
+    height:330px;
+}

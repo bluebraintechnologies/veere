@@ -7,9 +7,9 @@
             <Link :href="route('product', item.slug)" class="cart_pro_title">{{ item.name }}</Link>
             <span class="cart-price"><span>{{ currencyIcon+item.price }}</span> x {{ item.quantity }}</span>
             <div class="qty-plus-minus">
-                <div class="dec ec_qtybtn"  @click="decreaseInCartItem(item.id)">-</div>
+                <div class="dec ec_qtybtn" v-if="(item.quantity > 0)"  @click="decreaseInCartItem(item.id)">-</div>
                 <input class="qty-input" type="text" name="cartqtybutton" readonly v-model="productQty">
-                <div class="inc ec_qtybtn" @click="addInCartItem({id:item.product_id, quantity:1})">+</div>
+                <div class="inc ec_qtybtn" @click="addInCartItem({id:item.product_id, quantity:1, dealsProduct: dealsProduct, dealsProductDiscount: dealsProductDiscount})">+</div>
             </div>
             <a href="javascript:void(0)" @click="removeInCartItem(item)" class="remove">×</a>
         </div>
@@ -27,7 +27,7 @@ export default {
         item: [Object, Array],
     },
     computed: {
-        ...mapGetters(['currency', 'cartItems']),
+        ...mapGetters(['currency', 'cartItems', 'dealsProduct', 'dealsProductDiscount']),
         currencyIcon() {
              return (this.currency)?this.currency:'Rs. ';
         },

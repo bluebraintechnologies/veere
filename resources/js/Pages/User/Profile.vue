@@ -17,6 +17,7 @@ export default {
                 name:'',
                 phone:'',
                 email: '',
+                gender: '',
                 password : '',
                 new_password: '',
                 confirm_password: '',
@@ -27,16 +28,16 @@ export default {
     methods: {
         ...mapActions(['getWishlistItems', 'getCartItems']),
         submit() {
-            if(this.form.new_password){
-                if(this.form.password == ''){
-                    this.$toast.error('Please enter current password!!')
-                    return false;
-                }
-            }
-            if(this.form.new_password != this.form.confirm_password) {
-                this.$toast.error('New password and confirm password is not same');
-                return false;
-            }
+            // if(this.form.new_password){
+            //     if(this.form.password == ''){
+            //         this.$toast.error('Please enter current password!!')
+            //         return false;
+            //     }
+            // }
+            // if(this.form.new_password != this.form.confirm_password) {
+            //     this.$toast.error('New password and confirm password is not same');
+            //     return false;
+            // }
             axios.post('/api/password-check', {form : this.form, user: this.user}).then((response)=>{
                 if(response.data.status == 'success'){
                     let existingObj = this;
@@ -75,9 +76,10 @@ export default {
         this.getWishlistItems();
         this.getCartItems();
         this.form.name = this.user.name;
-        // this.form.email = this.user.email;
+        this.form.email = this.user.email;
         this.form.password = ''
         this.form.phone = this.user.mobile;
+        this.form.gender = this.user.gender
     }
     
 };
@@ -133,10 +135,21 @@ export default {
                                                     <label class="text-uppercase">phone</label>
                                                     <input type="text" name="phone" v-model="form.phone" class="" autocomplete="off">
                                                 </li>
+                                                <li>
+                                                    <label class="text-uppercase" >Gender</label><br>
+                                                    <select class="" v-model="form.gender" style="border: 1px solid #e1e1e1  !important; padding: 10px;
+    width: 100%;">
+                                                        <option value="">--</option>
+                                                        <option value="female">Female</option>
+                                                        <option value="male">Male</option>
+                                                        <option value="other">Other</option>
+                                                    </select>
+                                                    <!-- <input type="text" name="phone" v-model="form.phone" class="" autocomplete="off"> -->
+                                                </li>
                                             </ul>
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-sm-12">
+                                    <!-- <div class="col-md-6 col-sm-12">
                                         <div class="ec-vendor-detail-block ec-vendor-block-address">
                                             <h6>Change Password
                                                 <a href="javasript:void(0)" >
@@ -158,7 +171,7 @@ export default {
                                                 </li>
                                             </ul>
                                         </div>
-                                    </div>
+                                    </div> -->
                                     <div class="col-md-12 col-sm-12">
                                         <button type="submit" class="btn btn-primary" :disabled="form.processing">Update Profile</button>
                                     </div>

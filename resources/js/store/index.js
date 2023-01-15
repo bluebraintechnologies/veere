@@ -6,6 +6,8 @@ import home from "./modules/home";
 import assets from './modules/assets';
 import productModule from './modules/products';
 import wishlist from './modules/wishlist/index';
+import deals from './modules/deals/index';
+import user from './modules/user/index';
 
 export default createStore({
     modules: {
@@ -15,6 +17,8 @@ export default createStore({
         assets,
         home,
         wishlist,
-        settings
+        settings,
+        deals,
+        user,
     }
 })

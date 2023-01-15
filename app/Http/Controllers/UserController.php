@@ -5,17 +5,23 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Hash;
 use App\Models\User;
+use App\Models\Business;
 use App\Models\Shop;
 use App\Models\Transaction;
 use App\Models\TransactionSellLines;
 use App\Models\Address;
 use App\Models\Wishlist;
+use App\Models\CouponUsage;
+use App\Models\Product;
+use App\Models\PreferredDeliveryTime;
 use Cookie;
 use Illuminate\Support\Str;
 use Mail;
 use Cache;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use DB;
+
 class UserController extends Controller
 {
     protected $data = [];
@@ -35,12 +41,13 @@ class UserController extends Controller
             $this->data['orders'] =Transaction::select('id', 'payment_status', 'status', 'invoice_no', 'final_total', 'shipping_status')->with('sell_lines')->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('shipping_status', '!=', 'delivered')->orderBy('id', 'desc')->get();
             $this->data['synop'] = [
                 'orders' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->count(),
-                'saving' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->sum('discount_amount'),
+                'saving' => number_format(Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->sum('discount_amount'), 2),
                 'offers' => Transaction::where('type', 'sell')->where('contact_id', Auth::user()->id)->where('discount_amount', '>', 0)->count(),
                 'wishlists' => Wishlist::where('user_id', Auth::user()->id)->count(),
             ];
             if (Auth::check()) {
                 $this->data['isUserLogged'] = 1;
+                $this->data['loggedinUserDetail'] = Auth()->user();
             }
             return Inertia::render('User/Dashboard', $this->data);
         }
@@ -55,8 +62,19 @@ class UserController extends Controller
         $this->data['user'] = Auth::user();
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
         return Inertia::render('User/Profile', $this->data);
+    }
+    public function referEarn(Request $request)
+    {
+        $this->data['smenu'] = 'refer-earn';
+        $this->data['user'] = Auth::user();
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
+        }
+        return Inertia::render('User/refer-earn', $this->data);
     }
 
     public function orders(Request $request)
@@ -64,6 +82,7 @@ class UserController extends Controller
         $this->data['user'] = Auth::user();
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
         $this->data['smenu'] = 'orders';
         $user = auth()->user();
@@ -77,6 +96,7 @@ class UserController extends Controller
         $this->data['user'] = Auth::user();
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
         $this->data['smenu'] = 'addresses';
         $user = auth()->user();
@@ -90,9 +110,10 @@ class UserController extends Controller
         $this->data['user'] = Auth::user();
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
         $this->data['smenu'] = 'wishlist';
-        $this->data['wishlists'] = Wishlist::with('product')->where('user_id', Auth::user()->id)->paginate(9);////8
+        $this->data['wishlists'] = Wishlist::with('product')->where('user_id', Auth::user()->id)->paginate(5000);////8
         return Inertia::render('User/Wishlist', $this->data);
     }
 
@@ -101,9 +122,7 @@ class UserController extends Controller
         if(env('DEMO_MODE') == 'On'){
             flash(translate('Sorry! the action is not permitted in demo '))->error();
             return back();
-        }
-
-        
+        }        
 
         $user = Auth::user();
         $user->name = $request->name;
@@ -141,6 +160,9 @@ class UserController extends Controller
     
     public function orderDetail($oid = null)
     {
+        $business = Business::first(); //dd($this->data['business']);
+        $delivery_return_limit = $business->delivery_return_limit;
+        
         $order = Transaction::with(['sell_lines', 'payment_lines'])->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('invoice_no', base64_decode($oid))->first();
         if(!$order) {
             return redirect()->route('orders');
@@ -148,13 +170,23 @@ class UserController extends Controller
         $this->data['isUserLogged'] = 0;
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
+        $delivery_date = $order->delivery_date;
+        $this->data['order_return'] = false;
+        if($delivery_return_limit && $delivery_date){
+            if(strtotime('now') < strtotime($delivery_date) + 24*3600*($delivery_return_limit+1))
+            {
+                $this->data['order_return'] = true;
+            }
+        }
+        $customer_table = 'transaction_'.Auth::user()->id.'c';
+        $this->data['reward_point'] = DB::table($customer_table)->where('order_id', $order->id)->first();
         $this->data['smenu'] = 'orders';
         $user = auth()->user();
         $this->data['userinfo'] = $user;
         $this->data['user'] = Auth::user();
         $this->data['order'] = $order;
-        // dd($this->data);
         return Inertia::render('User/OrderDetail', $this->data);
     }
     public function trackOrder($oid = null)
@@ -166,6 +198,7 @@ class UserController extends Controller
         $this->data['isUserLogged'] = 0;
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
         $this->data['smenu'] = 'orders';
         $user = auth()->user();
@@ -177,5 +210,196 @@ class UserController extends Controller
     }
     public function logout(){
         Auth::logout();
+    }
+    public function customerOrderCancel(Request $request){
+        $id = $request->order_id;
+        $order = Transaction::find($id);
+        if($order->reward_payment){
+            $customer_table = "transaction_".Auth::user()->id."c";
+            $ct = DB::table($customer_table)
+                ->whereDate('expiry_date', '>=', date('Y-m-d', strtotime('now')))
+                ->where(function($query){
+                    $query->whereColumn('amt', '>', 'remaining')->orWhereNull('remaining');
+                })
+                ->where('trn_type', 1)
+                ->where('status', 1)
+                ->get();
+                
+            $reward_payment = $order->reward_payment;
+            $new_re_p = $reward_payment;
+            foreach($ct as $t){
+                $t = get_object_vars($t);
+                if(is_null($t['remaining'])){
+                    if($t['amt'] >= $new_re_p){
+                        DB::table($customer_table)->where('id', $t['id'])->update(['remaining' => $new_re_p]);
+                        $new_re_p = 0;
+                    }else{
+                        DB::table($customer_table)->where('id', $t['id'])->update(['remaining' => $t['amt']]);
+                        $new_re_p = $new_re_p - $t['amt'];
+                    }
+                }else{
+                    $x = $t['amt'] - $t['remaining'];
+                    if($x >= $new_re_p){
+                        DB::table($customer_table)->where('id', $t['id'])->update(['remaining' => $t['remaining'] + $new_re_p]);
+                        $new_re_p = 0;
+                    }else{
+                        DB::table($customer_table)->where('id', $t['id'])->update(['remaining' => $t['amt']]);
+                        $new_re_p = $new_re_p - $x;
+                    }
+                }
+                if($new_re_p == 0){
+                    break;
+                }                
+            }
+            DB::table($customer_table)->where('order_id', $id)->delete();
+        }
+        if ($order->coupon_id > 0) {
+            CouponUsage::where('user_id', Auth::user()->id)->where('discount_id', $order->coupon_id)->delete();
+        }
+        $order->shipping_status = 'cancelled';
+        $order->save();
+        return ['status' => 'success'];
+    }
+    public function customerOrderReturn(Request $request){
+        $id = $request->order_id;
+        $order = Transaction::find($id);
+        
+        $order->return_request = 'return';
+        $order->save();
+        return ['status' => 'success'];
+    }
+    public function rewardpoints(){
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
+        }
+        $this->data['smenu'] = 'reward-points';
+        $customer_table = "transaction_".Auth::user()->id."c";
+        $t = Transaction::select('id', 'invoice_no')->whereNotNull('invoice_no')->orderBy('id', 'desc')->get()->toArray();
+        
+        $this->data['order_invoice'] = array_combine(array_column($t, 'id'), array_column($t, 'invoice_no'));
+        $this->data['records'] = DB::table($customer_table)
+                                    ->where('remaining', '>', 0)
+                                    ->paginate(25);
+        $this->data['total_reward_points'] = DB::table($customer_table)->where('remaining', '>', 0)->sum('remaining');
+        $this->data['reward_points_received'] = DB::table($customer_table)->where('remaining', '>', 0)->where('status', 1)->sum('remaining');
+        $this->data['reward_points_on_the_way'] = DB::table($customer_table)->where('remaining', '>', 0)->where('status', 0)->sum('remaining');
+        $user = auth()->user();
+        $this->data['userinfo'] = $user;
+        $this->data['user'] = Auth::user();
+        return Inertia::render('User/RewardPoints', $this->data);
+    }
+    public function rewardpointsUsed(){
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
+        }
+        $this->data['smenu'] = 'reward-points-used';
+        $customer_table = "transaction_".Auth::user()->id."c";
+        $t = Transaction::select('id', 'invoice_no')->whereNotNull('invoice_no')->orderBy('id', 'desc')->get()->toArray();
+        
+        $this->data['order_invoice'] = array_combine(array_column($t, 'id'), array_column($t, 'invoice_no'));
+        $this->data['records'] =Transaction::select('id', 'payment_status', 'status', 'invoice_no', 'final_total', 'shipping_status', 'reward_payment')
+                                ->where('type', 'sell')
+                                ->where('contact_id', Auth::user()->id)
+                                ->whereNotNull('reward_payment')
+                                ->orderBy('id', 'desc')
+                                ->paginate(25);
+                                
+        // $this->data['total_reward_points'] = DB::table($customer_table)->where('remaining', '>', 0)->sum('remaining');
+        // $this->data['reward_points_received'] = DB::table($customer_table)->where('remaining', '>', 0)->where('status', 1)->sum('remaining');
+        // $this->data['reward_points_on_the_way'] = DB::table($customer_table)->where('remaining', '>', 0)->where('status', 0)->sum('remaining');
+        $user = auth()->user();
+        $this->data['userinfo'] = $user;
+        $this->data['user'] = Auth::user();
+        return Inertia::render('User/RewardPointsUsed', $this->data);
+    }
+    public function grocerylist(){
+        dd();
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
+        }
+        $this->data['smenu'] = 'grocerylist';
+        $user = auth()->user();
+        $this->data['userinfo'] = $user;
+        $this->data['user'] = Auth::user();
+        return Inertia::render('User/Grocerylist', $this->data);
+    }
+    public function getProducts(Request $request){
+        $keyword = $request->search;
+        $searchTerm = $keyword;
+        $reservedSymbols = ['-', '+', '<', '>', '@', '(', ')', '~'];
+        $searchTerm = str_replace($reservedSymbols, ' ', $searchTerm);
+
+        $searchValues = preg_split('/\s+/', $searchTerm, -1, PREG_SPLIT_NO_EMPTY);
+        $products = Product::leftJoin('categories as c1', 'products.category_id', '=', 'c1.id')
+                        ->join('variations as v', 'v.product_id', '=', 'products.id')
+                        ->leftJoin('variation_location_details as vld', 'vld.variation_id', '=', 'v.id')
+                        ->where('products.type', '!=', 'modifier')
+                        ->where('products.not_for_selling', 0)
+                        ->where('products.is_inactive', 0)
+                        ->where(function ($q) use ($searchValues) {
+                            foreach ($searchValues as $value) {
+                                $q->orWhere('products.slug', 'like', "%{$value}%");
+                                $q->orWhere('products.name', 'like', "%{$value}%");
+                                $q->orWhere('c1.slug', 'like', "%{$value}%");
+                                $q->orWhere('c1.name', 'like', "%{$value}%");
+                            }
+                        })
+                        ->select('products.id',
+                                'products.new_tag',
+                                'products.sale_start',
+                                'products.sale_end',
+                                'products.name',
+                                'products.slug',
+                                'c1.name as category',
+                                'c1.slug as category_slug',
+                                'products.sku',
+                                'products.short_description',
+                                'products.image',
+                                'products.discount_type',
+                                'products.percent_discount',
+                                'products.flat_discount',
+                                'products.discount_start_date',
+                                'products.discount_end_date',
+                                'v.sub_sku',
+                                'v.sell_price_inc_tax as price')
+                        ->orderBy('products.updated_at', 'desc')
+                        ->get();
+        return ['products' => $products];
+    }
+    public function preferred_delivery_time(){
+        return PreferredDeliveryTime::whereNotNull('ptime')->orderBy('id', 'asc')->pluck('ptime');
+    }
+    public function getUserRewardPointsEarned(){
+        if(Auth::user()){
+            $customer_table = "transaction_".Auth::user()->id."c";
+            return DB::table($customer_table)->where('remaining', '>', 0)->sum('remaining');
+        }        
+    }
+    public function getUserRewardPointsOnthewar(){
+        if (Auth::user()) {
+            $customer_table = "transaction_".Auth::user()->id."c";
+            return DB::table($customer_table)->where('remaining', '>', 0)->where('status', 0)->sum('remaining');
+        }
+    }
+    public function feedback($oid = null){
+        $order = Transaction::with(['sell_lines', 'payment_lines'])->where('type', 'sell')->where('contact_id', Auth::user()->id)->where('invoice_no', base64_decode($oid))->first();
+        if(!$order) {
+            return redirect()->route('home');
+        }
+        $this->data['order'] = $order;
+        $this->data['isUserLogged'] = 0;
+        if (Auth::check()) {
+            $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
+        }
+        $user = auth()->user();
+        $this->data['userinfo'] = $user;
+        $this->data['user'] = Auth::user();
+        dd($this->data);
+        return Inertia::render('User/Feedback', $this->data);
+        // dd($order);
     }
 }

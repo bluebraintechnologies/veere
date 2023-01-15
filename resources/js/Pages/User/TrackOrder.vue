@@ -11,6 +11,19 @@
         components: {
             AuthenticatedLayout,
         },
+        data() {
+            return {
+                order_status: {
+                   ordered: 1,
+                   processing: 2,
+                   picking: 3,
+                   packed: 4,
+                   shipped: 5,
+                   delivered: 6,
+                   cancelled: 7,
+                }
+            }
+        },
         computed: {
             saddress() {
                 return JSON.parse(this.order.shipping_address)
@@ -67,39 +80,46 @@
                             <div class="ec-trackorder-bottom">
                                 <div class="ec-progress-track">
                                     <ul id="ec-progressbar">
-                                        <li class="step0 active">
+                                        <li class="step0 " :class="[(order_status[order.shipping_status] >= 1) ? 'active' : '']">
                                             <span class="ec-track-icon"> 
                                                 <img src="/assets/images/icons/track_1.png" alt="track_order">
                                             </span>
                                             <span class="ec-progressbar-track"></span>
-                                            <span class="ec-track-title">order<br>processed</span>
+                                            <span class="ec-track-title">Ordered</span>
                                         </li>
-                                        <li class="step0 active">
+                                        <li class="step0 " :class="[(order_status[order.shipping_status] >= 2) ? 'active' : '']">
                                             <span class="ec-track-icon"> 
                                                 <img src="/assets/images/icons/track_2.png" alt="track_order">
                                             </span>
                                             <span class="ec-progressbar-track"></span>
-                                            <span class="ec-track-title">order<br>designing</span>
+                                            <span class="ec-track-title">Processing</span>
                                         </li>
-                                        <li class="step0 active">
+                                        <li class="step0 " :class="[(order_status[order.shipping_status] >= 3) ? 'active' : '']">
                                             <span class="ec-track-icon"> 
                                                 <img src="/assets/images/icons/track_3.png" alt="track_order">
                                             </span>
                                             <span class="ec-progressbar-track"></span>
-                                            <span class="ec-track-title">order<br>shipped</span>
+                                            <span class="ec-track-title">Picking</span>
                                         </li>
-                                        <li class="step0">
+                                        <li class="step0" :class="[(order_status[order.shipping_status] >= 4) ? 'active' : '']">
                                             <span class="ec-track-icon"> 
                                                 <img src="/assets/images/icons/track_4.png" alt="track_order">
                                             </span>
                                             <span class="ec-progressbar-track"></span>
-                                            <span class="ec-track-title">order <br>enroute</span></li>
-                                        <li class="step0">
+                                            <span class="ec-track-title">Packed</span></li>
+                                        <li class="step0" :class="[(order_status[order.shipping_status] >= 5) ? 'active' : '']">
                                             <span class="ec-track-icon"> 
                                                 <img src="/assets/images/icons/track_5.png" alt="track_order">
                                             </span>
                                             <span class="ec-progressbar-track"></span>
-                                            <span class="ec-track-title">order<br>arrived</span>
+                                            <span class="ec-track-title">Shipped</span>
+                                        </li>
+                                        <li class="step0" :class="[(order_status[order.shipping_status] >= 6) ? 'active' : '']">
+                                            <span class="ec-track-icon"> 
+                                                <img src="/assets/images/icons/track_6.png" alt="track_order">
+                                            </span>
+                                            <span class="ec-progressbar-track"></span>
+                                            <span class="ec-track-title">Delivered</span>
                                         </li>
 
                                     </ul>

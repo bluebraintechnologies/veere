@@ -17,7 +17,10 @@ class WishlistController extends Controller
     {
         // $pids = Wishlist::where('user_id', Auth::user()->id)->get()->pluck('product_id');
         // return filter_products(Product::whereIn('id', $pids)->where('published', '1'))->get();   
-        return Wishlist::select('id', 'product_id')->with('product')->where('user_id', Auth::user()->id)->get();
+        if(Auth::user()){
+            return Wishlist::select('id', 'product_id')->with('product')->where('user_id', Auth::user()->id)->get();
+        }
+        return [];
     }
 
     public function store(Request $request)

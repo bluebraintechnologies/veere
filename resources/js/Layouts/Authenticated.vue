@@ -20,46 +20,53 @@ export default {
     data() {
         return {
             sideCartStatus: false,
-            /*  showNavigation:false,
-                activeCondesnedMenu: false,
-                darkModeStatus: false */
+            showCookieBanner : true,
+            cookieAccepted: false,
+            showNavigation:false,
         };
     },
     computed: {
-        ...mapGetters(['wishlistItems', 'cartItems'])
+        ...mapGetters(['wishlistItems', 'cartItems', 'cookieStatus', 'cartQuantity'])
     },
     methods: {
-         ...mapActions(['getWishlistItems', 'getCartItems']),
+         ...mapActions(['getWishlistItems', 'getCartItems', 'getDealItems', 'getRewardPoints' ,'getStockDetails', 'getStockDetails', 'setCookieStatus']),
         displaySideCart() {
             this.sideCartStatus = !this.sideCartStatus;
         },
-        /* changeNavStatus() {
-                this.showNavigation = !this.showNavigation
-            },
-            changeSidemenu() {
-                this.activeCondesnedMenu = !this.activeCondesnedMenu
-            },
-            changeThemeMode() {
-                this.darkModeStatus =  !this.darkModeStatus
-                if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.classList.add('dark')
-                } else {
-                    document.documentElement.classList.remove('dark')
-                }
-            } */
-    },
-    mounted() {
-        if(this.$page.props.auth.user) {
-            this.getWishlistItems();
+        changeNavStatus() {
+            this.showNavigation = !this.showNavigation;
+        },
+        saveCookieStatus(){
+            // this.setCookieStatus();
+            localStorage.setItem("user_accept_cookie", 'accepted')
+            this.cookieAccepted = localStorage.getItem("user_accept_cookie")
+        },
+        getStockDetailsInfo(){
+            let location
+            if(localStorage.getItem("location")){
+                location = localStorage.getItem("location")
+            }else if(localStorage.getItem("temp_location")){
+                location = localStorage.getItem("temp_location")
+            }
+            this.getStockDetails([location])
         }
+    },
+    created(){
+        this.getStockDetailsInfo();
+        this.getDealItems();
         this.getCartItems();
+        this.cookieAccepted = localStorage.getItem("user_accept_cookie")
+    },
+    mounted() {        
+        this.getRewardPoints()
+        this.getWishlistItems();
     }
 };
 </script>
 
 <template>
     <div>
-        <theme-header @show-sidecart="displaySideCart()" />
+        <theme-header @show-sidecart="displaySideCart()" @show-mobilemenu="changeNavStatus()" :showNavigation="showNavigation" />
         <side-cart @close-sidebar="displaySideCart()" :showCart="sideCartStatus" />
         <user-breadcumb></user-breadcumb>
         <section class="ec-page-content ec-vendor-uploads ec-user-account section-space-p mb-8">

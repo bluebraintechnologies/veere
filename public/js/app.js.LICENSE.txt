@@ -17,7 +17,7 @@
  */
 
 /**
- * Vue 3 Carousel 0.1.46
+ * Vue 3 Carousel 0.1.48
  * (c) 2022
  * @license MIT
  */

@@ -10,6 +10,15 @@ import DiscountPrice from './Elemants/DiscountPrice.vue';
 import { useForm } from '@inertiajs/inertia-vue3';
 import { Inertia } from '@inertiajs/inertia'
 import SingleProduct from "./SingleGrid.vue";
+import InnerImageZoom from 'vue-inner-image-zoom';
+import 'vue-inner-image-zoom/lib/vue-inner-image-zoom.css';
+import {Countdown} from 'vue3-flip-countdown';
+import TwitterButton from "vue-share-buttons/src/components/TwitterButton";
+import FacebookButton from "vue-share-buttons/src/components/FacebookButton";
+import LinkedinButton from "vue-share-buttons/src/components/LinkedinButton";
+import EmailButton from "vue-share-buttons/src/components/EmailButton";
+import WhatsappButton from "vue-share-buttons/src/components/WhatsappButton";
+import PinterestButton from "vue-share-buttons/src/components/PinterestButton";
 
 export default {
     name: "Product Detail",
@@ -26,11 +35,25 @@ export default {
         Price,
         DiscountPrice,
         SingleProduct,
+        'inner-image-zoom': InnerImageZoom,
+        Countdown,
+        TwitterButton,
+        FacebookButton,
+        EmailButton,
+        LinkedinButton,
+        WhatsappButton,
+        PinterestButton,
     },
     props: {
         product:Object,
         productReviews:Object|Array,
         relatedProduct:Object|Array,
+        legal_disclaimer:Object,
+        deal_end_date_timestamp:String,
+        available_stock:Number,
+        isUserLogged:Number,
+        product_bought:Number,
+        business: Object,
     },
     data(){
         return {
@@ -44,14 +67,55 @@ export default {
             submitBtn : true,
             postal_code : '',
             delivery_status : 0,
+            currentImageGallery:'',
+            showPincodeError:false,
+            showPincodeError1:false,
+            
         }
     },
     computed:{ 
-        ...mapGetters(['currency']),
+        ...mapGetters(['currency', 'dealsProduct', 'dealsProductDiscount']),
         stock_available() {
            return 10;
         },
-        isdiscountEnabled() {
+        product_weight(){
+            let weight = Number(this.product.weight)
+            if(parseInt(weight) > 0){
+                return Number(this.product.weight) + 'KG'
+            }else{
+                return Number(this.product.weight)*1000 + 'GM'
+            }
+        },
+        currentImage(){
+            if(this.product.images){
+                let images = JSON.parse(this.product.images)
+                return this.$media_url + images.slice(0,1)
+            }else if(this.product.image){
+                return this.$media_url+this.product.image
+            } else{
+                return this.$media_url+'product-image/50_2.jpg'
+            }
+        },
+        gallery(){
+            if(this.product.images){
+                return JSON.parse(this.product.images)
+            }
+            return []
+        },
+        isdiscountEnabled() {            
+            
+            if(this.isDealsDiscountEnable || this.isProductDiscountEnable){
+                return true;
+            }
+            return false;
+        },
+        isDealsDiscountEnable(){
+            if(this.dealsProduct.indexOf(this.product.id) >= 0){
+                return true
+            }
+            return false;
+        },
+        isProductDiscountEnable(){
             let day = moment().date()
             let month = moment().month() + 1
             let year = moment().year()
@@ -62,31 +126,91 @@ export default {
             } 
             if(moment(today).isSame(this.product.discount_end_date)){
                 return true;
-            }
-            
+            }            
             if(moment(today).isAfter(this.product.discount_start_date) && moment(today).isBefore(this.product.discount_end_date)){
                 return true;
             }
             return false;
         },
         final_price() {
-            if(this.isdiscountEnabled) {
-                let up = parseInt(this.product.variations[0].sell_price_inc_tax) //
-                let dt = this.product.discount_type
-                let pd = this.product.percent_discount
-                let fd = this.product.flat_discount
-                
-                let fp = 0
+            let up = this.product.price
+            let dt = this.product.discount_type
+            let pd = Number(this.product.percent_discount)
+            let fd = Number(this.product.flat_discount)
+            let fp = 0
+            let netPercentDiscount = 0
+            let netFlatDiscount = 0
+            if(this.isProductDiscountEnable){
                 if(dt == 'percent') {
-                    fp = up*((100-pd)/100);
-                    return fp
+                    netPercentDiscount = pd
                 }
                 if(dt == 'flat') {
-                    fp = up - fd;
-                    return fp
+                    netFlatDiscount = fd;
                 }
-                return fp;
             }
+            //standard discount
+            
+            if(this.isDealsDiscountEnable) {
+                if(this.dealsProduct.indexOf(this.product.id) >= 0){
+                    //calculate price
+                    let d = this.dealsProductDiscount.filter((ele) => {
+                        if(ele.id == this.product.id){
+                            return ele
+                        }
+                    })
+                    let deals_discount_type = d[0]['discount_type'];
+                    let deals_discount_amount = d[0]['discount_amount'];
+                    let deals_blend_product_discount = d[0]['blend_product_discount'];
+                    if(deals_blend_product_discount == 1){
+                        //add with product discount
+                        if(deals_discount_type == 'percentage'){
+                            netPercentDiscount = Number(deals_discount_amount) + Number(netPercentDiscount);                            
+                        }else{                            
+                            netFlatDiscount = Number(deals_discount_amount) + Number(netFlatDiscount);                        
+                        }
+                    }else{
+                        //only deal discount
+                        if(deals_discount_type == 'percentage'){
+                            netPercentDiscount = Number(deals_discount_amount);
+                            netFlatDiscount = 0;
+                        }else{
+                            netPercentDiscount = 0;
+                            netFlatDiscount = Number(deals_discount_amount);
+                        }
+                    }
+                } 
+            }
+            if(this.product.standard_product_discount_type == 'percent' && Number(this.product.standard_discount) > 0){                
+                netPercentDiscount = Number(this.product.standard_discount) + Number(netPercentDiscount)
+            }else{
+                if(Number(this.product.standard_discount) > 0){
+                    netFlatDiscount = Number(this.product.standard_discount) + Number(netFlatDiscount);
+                }
+            }
+            if(netPercentDiscount > 0){
+                up =  up*(100 - Number(netPercentDiscount))/100;
+            }
+            if(netFlatDiscount){
+                up = up - Number(netFlatDiscount);
+            }
+            if(netPercentDiscount > parseInt(netPercentDiscount)){
+                netPercentDiscount = Number(netPercentDiscount).toFixed(2)
+            }else{
+                netPercentDiscount = parseInt(netPercentDiscount)
+            }
+            let p = '';
+            if(netPercentDiscount > 0){
+                p = netPercentDiscount + '%'
+            }
+            if(netFlatDiscount > 0){
+                if(netPercentDiscount > 0){
+                    p = netPercentDiscount + '% +'
+                }
+                p = p + this.currency +'. ' + netFlatDiscount
+            }
+            return {up : up, netPercentDiscount : netPercentDiscount, netFlatDiscount : netFlatDiscount, p : p}
+            // return {netPercentDiscount, netFlatDiscount, up}
+            return up
         },
         product_reviews(){
             let r = 0;
@@ -97,16 +221,30 @@ export default {
             })
             let s = parseInt(r/c)
             let f = r/c
-            return {star : s, star_net : f.toFixed(2)}
-            // return parseInt(r/c)
-            // return {r,c, star}
-            // return parseInt(r/c)
-        }
+            if(f > 0){
+                f = f.toFixed(2)
+            }else{
+                f = ''
+            }
+            return {star : s, star_net : f}
+        },
+        tag(){
+            if(this.dealsProduct.indexOf(this.product.id) >= 0){
+                //calculate price
+                return 'Deals'
+            } else if(this.product.new_tag == 1){
+                return 'New'
+            }
+            return '';
+        },
     },
     setup() {
         return {};
     },
     methods: {
+        setCurrentImage(img){
+            this.currentImageGallery = this.$media_url +img
+        },
         qtyDown() {
             if(this.ec_qtybtn == this.product.min_qty || this.ec_qtybtn == 1) {
                 this.$toast.warning('You have to select atleast 1 quantity')
@@ -148,11 +286,26 @@ export default {
                 axios.post('/api/get-postal-code-delivery-status', {postal_code : this.postal_code, id : this.product.id}).then((response) => {
                     if(response.data.status == 'success'){
                         this.delivery_status = 1
-                        this.$toast.success('Delivery is available here')
-                    }else{
+                        
+                        // this.$toast.success('Delivery is available here')
+                        
+                        setTimeout(() => {
+                            this.delivery_status = 0
+                        }, 3000); 
+                    }
+                    if(response.data.status == 'fail'){
                         this.delivery_status = 2
+                        this.showPincodeError = true
+                        setTimeout(() => {
+                            this.showPincodeError = false
+                        }, 3000); 
                     }
                 })
+            }else{
+                this.showPincodeError1 = true
+                setTimeout(() => {
+                    this.showPincodeError1 = false
+                }, 3000);
             }
         },
         digits_count(n) {
@@ -170,16 +323,60 @@ export default {
 };
 </script>
 <style>
+    .ec-pro-content .er-price div.old-price {
+        font-size: 15px;
+        margin-right: 15px;
+        text-decoration: line-through;
+        color: #777777;
+    }
     .pincode-success{
         border: 2px solid green;
     }
     .pincode-danger{
         border: 2px solid green;
     }
+    .gallery-li {
+        max-height:100px;
+        cursor: pointer;
+    }
+    .pincode-outer-container{
+        display: flex !important;
+        flex-direction: column;
+    }
+    .pincode-container{
+        display: flex;
+        justify-content: row;
+    }
+    .pincode-flex-item{
+        margin-left:10px;
+        height: 100%;
+    }
+    .pincode-error,.pincode-error-1{
+        color: #e70909  !important;
+        padding: 0 10px;
+        width: fit-content;
+        font-weight: 500 !important;
+    }
+    .pincode-error-success{
+        color: #37e028  !important;
+        padding: 0 10px;
+        width: fit-content;
+        font-weight: 500 !important;
+    }
+    
 </style>
 <template>
-    <Head :title="product.name" />
-
+    <!-- <Head :title="product.name" /> -->
+    <Head>
+        <!-- <title >{{ product.name }}</title> -->
+        <meta property="og:title" :content="product.name" />
+        <meta property="og:description" :content="product.short_description" />
+        <meta property="og:image" :content="currentImageGallery" v-if="currentImageGallery"/>
+        <meta property="og:image" :content="currentImage" v-else/>
+        <meta property="og:url"   :content="this.$site_url+'/product/'+product.slug" />
+        <meta property="og:type"  content="product" />
+    </Head>
+    
     <MainLayout>
         <div class="sticky-header-next-sec  ec-breadcrumb section-space-mb">
             <div class="container">
@@ -194,9 +391,6 @@ export default {
                                 <ul class="ec-breadcrumb-list">
                                     <li class="ec-breadcrumb-item">
                                         <Link :href="route('home')">Home</Link>
-                                    </li>
-                                    <li class="ec-breadcrumb-item">
-                                        <!-- <Link :href="route('category', product.category_slug)">{{ product.category }}</Link> -->
                                     </li>
                                     <li class="ec-breadcrumb-item active">{{ product.name }}</li>
                                 </ul>
@@ -218,50 +412,130 @@ export default {
                                         <div class="single-product-scroll">
                                             <div class="single-product-cover">
                                                 <div class="single-slide zoom-image-hover">
-                                                    <product-image :src="(product.image)?$media_url+product.image:$local_media_url+'product-image/50_2.jpg'" className="img-responsive" :alt="product.name"></product-image>
+                                                    <!-- <product-image :src="(product.image)?$media_url+product.image:$local_media_url+'product-image/50_2.jpg'" className="img-responsive" :alt="product.name"></product-image> -->
+                                                    <inner-image-zoom class="main-image img-responsive" :src="currentImageGallery" :zoomSrc="currentImageGallery" v-if="currentImageGallery"/>
+                                                    <!-- <img class="main-image img-responsive" :src="currentImageGallery"  v-if="currentImageGallery" /> -->
+                                                    <inner-image-zoom class="main-image img-responsive" :src="currentImage" :zoomSrc="currentImage"  v-else></inner-image-zoom>
                                                 </div>
                                             </div>
                                             <div class="single-nav-thumb">
-                                                <div class="single-slide" style="width:135px">
-                                                    <product-image :src="(product.image)?$media_url+product.image:$local_media_url+'product-image/50_2.jpg'" :alt="product.name" className="img-responsive"></product-image>
+                                                <div class="single-slide" v-if="gallery.length > 0">
+                                                    <ul>
+                                                        <li class="single-slide gallery-li" v-for="(img, index) in gallery" :key="'img-' + index" @click="setCurrentImage(img)">
+                                                            <img class="main-image img-responsive" :src="$media_url+img"  />
+                                                        </li>
+                                                    </ul>                                                    
+                                                </div>
+                                                <div class="single-slide" v-else>
+                                                    <product-image :src="(product.image)?$media_url+product.image:$local_media_url+'product-image/50_2.jpg'" :alt="product.name" className="img-responsive" ></product-image>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     <div class="single-pro-desc single-pro-desc-no-sidebar">
                                         <div class="single-pro-content">
-                                            <h5 class="ec-single-title">{{ product.name }}
-                                                <span class="float-right">
-                                                    <wishlist-button-vue :product="product"></wishlist-button-vue>
+                                            <span class="flags-percent-discount" v-if="final_price.p">
+                                                <span class="new-percent-discount">
+                                                    <!-- {{ final_price.netPercentDiscount }} % 
+                                                    <span v-if="final_price.netFlatDiscount > 0">+ </span>
+                                                    <span v-if="final_price.netFlatDiscount > 0"> {{ currency }} {{ final_price.netFlatDiscount }}</span> -->
+                                                    {{ final_price.p }}
                                                 </span>
-                                            </h5>
+                                            </span>
+                                            <span class="flags" v-else-if="tag != ''">
+                                                <span class="new">{{ tag }}</span>
+                                            </span>
+                                            <h5 class="ec-single-title">{{ product.name }}</h5>
                                             <div class="ec-single-rating-wrap">
                                                 <div class="ec-single-rating">
-
                                                     <i v-for="f in 5" :key="'start-'+f" class="ecicon" :class="[(f <= product_reviews.star) ? 'eci-star fill' : 'eci-star-o']" ></i>
-                                                    <span class="badge " style="color: #000;">{{ product_reviews.star_net }}</span>
+                                                    <span class="badge">{{ product_reviews.star_net }}</span>
                                                 </div>
                                             </div>
                                             <div class="ec-single-price-stoke">
                                                 <div class="ec-single-price">
-                                                    <span class="ec-single-ps-title">As low as</span>
-                                                    <DiscountPrice  v-if="isdiscountEnabled" :currency="currency" :oldPrice="product.variations[0].sell_price_inc_tax" :newPrice="final_price"></DiscountPrice>
-                                                    <span v-else class="new-price">Rs. <price :price="product.variations[0].sell_price_inc_tax"></price></span>
+                                                    <!-- <span class="ec-single-ps-title">As well as</span> -->
+                                                    <DiscountPrice  v-if="final_price.up" :currency="currency" :oldPrice="product.price" :newPrice="final_price.up"></DiscountPrice>
+                                                    <price :price="product.price" v-else></price>
                                                 </div>
                                                 <div class="ec-single-stoke">
-                                                    <span class="ec-single-ps-title">IN STOCK</span>
+                                                    <!-- <span class="ec-single-ps-title" v-if="available_stock > 0">IN STOCK</span>
+                                                    <div class="out-of-stock" v-else>OUT OF STOCK</div> -->
                                                     <span class="ec-single-sku">SKU#: {{ product.sku }}</span>
                                                 </div>
                                             </div>
+                                            <span class="pd-short-desc" v-html="product.short_description"></span>
+                                            
                                             <div class="ec-single-qty">
-                                                <div class="ec-single-cart mr-2">
+                                                <div class="ec-single-cart mr-2" v-if="available_stock > 0">
                                                     <cart-button :product="product"></cart-button>
                                                 </div>
+                                                <div class="out-of-stock out-off-stock-btn btn" v-if="available_stock == 0">OUT OF STOCK</div>
                                                 <div class="ec-single-wishlist float-right">
-                                                    <input type="number" :class="[(this.delivery_status == 1) ? 'pincode-success' : '']"  v-model="postal_code" @keyup="postalCode()" placelholder="enter pincode"/>                                                    
                                                 </div>
                                             </div>
-                                            <div class="ec-single-pro-tab-desc" v-html="product.product_description"></div>
+                                            <div class="ec-single-qty pincode-outer-container">
+                                                <div class="pincode-container">
+                                                    <div class="pincode-flex-item">
+                                                        <input type="text" :class="[(this.delivery_status == 1) ? 'pincode-success' : '']"  v-model="postal_code" placeholder="Enter pincode"  placelholder="enter pincode/zipcode"/>
+                                                    </div>
+                                                    <div class="pincode-flex-item">
+                                                        <button class="btn btn-primary btn-sm" @click="postalCode()">Check Availability</button>
+                                                    </div>
+                                                    <div class="pd-checklist-btn">
+                                                        <wishlist-button-vue :product="product"></wishlist-button-vue>
+                                                    </div>
+                                                </div>
+                                                <p v-if="showPincodeError" class="pincode-error">Delivery is not available at this pincode</p>
+                                                <p v-if="showPincodeError1" class="pincode-error-1">Please check pincode!</p>
+                                                <p v-if="delivery_status == 1" class="pincode-error-success">Delivery is available here</p>
+                                            </div>
+                                            <div class="ec-single-sales" v-if="isDealsDiscountEnable">
+                                                <div class="ec-single-sales-inner">
+                                                    <div class="ec-single-sales-title">sales accelerators</div>
+                                                    <div class="ec-single-sales-progress">
+                                                        <span class="ec-single-progress-desc" v-if="available_stock > 0">Hurry up!left {{ available_stock }} in
+                                                            stock</span>
+                                                        <span class="ec-single-progressbar"></span>
+                                                    </div>
+                                                    <div class="ec-single-sales-countdown">
+                                                        <div class="ec-single-countdown">
+                                                            <Countdown :deadline="deal_end_date_timestamp" :flipAnimation="false" />
+                                                        </div>
+                                                        <div class="ec-single-count-desc">Time is Running Out!</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="ec-single-social">
+                                                <ul class="mb-0">
+                                                    <li class="list-inline-item" v-if="business.ptwitter == 1">
+                                                        <TwitterButton :url="this.$site_url+'/product/'+product.slug" class="share-button--circle share-button--outline" btnText  />
+                                                    </li>
+                                                    <li class="list-inline-item" v-if="business.pfacebook == 1">
+                                                        <FacebookButton :url="this.$site_url+'/product/'+product.slug" class="share-button--circle share-button--outline" btnText />
+                                                    </li>
+                                                    
+                                                    <li class="list-inline-item" v-if="business.plinkedin == 1">
+                                                        <LinkedinButton :url="this.$site_url+'/product/'+product.slug" class="share-button--circle share-button--outline" btnText />
+                                                    </li>
+                                                    <li class="list-inline-item" v-if="business.pwhatsapp == 1">
+                                                        <WhatsappButton :url="this.$site_url+'/product/'+product.slug" class="share-button--circle share-button--outline" btnText />
+                                                    </li>
+                                                    <li class="list-inline-item" v-if="business.ppinterest == 1">
+                                                        <PinterestButton :url="this.$site_url+'/product/'+product.slug" class="share-button--circle share-button--outline" btnText></PinterestButton>
+                                                    </li>
+                                                    <li class="list-inline-item" v-if="business.pemail == 1">
+                                                        <EmailButton :url="this.$site_url+'/product/'+product.slug" class="share-button--circle share-button--outline" btnText />
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                            <div class="ec-single-sales">
+                                                <div class="ec-single-sales-inner">
+                                                    <div class="ec-single-sales-visitor">Product Description</div>
+                                                    <div class="ec-single-pro-tab-desc" v-html="product.product_description"></div>
+
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -273,10 +547,6 @@ export default {
                             <div class="ec-single-pro-tab-wrapper">
                                 <div class="ec-single-pro-tab-nav">
                                     <ul class="nav nav-tabs">
-                                        <!-- <li class="nav-item">
-                                            <a class="nav-link" :class="[(tab == 'details') ? 'active' : '']" data-bs-toggle="tab"
-                                                data-bs-target="#ec-spt-nav-details" role="tablist" @click="tab = 'details'">Detail</a>
-                                        </li> -->
                                         <li class="nav-item">
                                             <a class="nav-link" :class="[(tab == 'more-information') ? 'active' : '']" data-bs-toggle="tab" data-bs-target="#ec-spt-nav-info"
                                                 role="tablist" @click="tab = 'more-information'">More Information</a>
@@ -285,31 +555,46 @@ export default {
                                             <a class="nav-link" :class="[(tab == 'reviews') ? 'active' : '']" data-bs-toggle="tab" data-bs-target="#ec-spt-nav-review"
                                                 role="tablist" @click="tab = 'reviews'">Reviews</a>
                                         </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" :class="[(tab == 'disclaimer') ? 'active' : '']" data-bs-toggle="tab" data-bs-target="#ec-spt-nav-disclaimer"
+                                                role="tablist" @click="tab = 'disclaimer'">Legal Disclaimer</a>
+                                        </li>
                                     </ul>
                                 </div>
                                 <div class="tab-content  ec-single-pro-tab-content">
-                                    <!-- <div id="ec-spt-nav-details" class="tab-pane fade show " :class="[(tab == 'details') ? 'active' : '']">
-                                        <div class="ec-single-pro-tab-desc" v-html="product.product_description"></div>
-                                    </div> -->
                                     <div id="ec-spt-nav-info" class="tab-pane fade" :class="[(tab == 'more-information') ? 'active' : '']">
                                         <div class="ec-single-pro-tab-moreinfo">
-                                            <ul>
-                                                <li v-if="product.category"><span>Category</span> {{ product.category.name }}</li>
-                                                <li v-if="product.sub_category"><span>Sub Category</span>span>{{ product.sub_category.name }}</li>
-                                                <li v-if="product.weight"><span>HSN Code</span>{{ product.weight }}</li>
-                                                <li v-if="product.media.length > 0"><span>Product brochure</span> <a :href="product.media[0].display_url" target="_blank">{{ product.media[0].display_name }}</a></li>
-                                                <li v-if="product.product_custom_field2"><span>HSN Code</span>{{ product.product_custom_field2 }}</li>
+                                            <ul class="product-property-list" >
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.category"><span>Category</span> {{ product.category }}</li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.sub_category"><span>Sub Category</span>span>{{ product.sub_category }}</li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.weight"><span>Weight</span>{{ product_weight }}</li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.hsn_code"><span>HSN Code</span>{{ product.hsn_code }}</li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.origin"><span>Origin</span>{{ product.origin }}</li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.manufacturer"><span>Manufacturer</span>{{ product.manufacturer }}</li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.material_features">
+                                                    <span >Material Features</span>
+                                                    <span :class="[(product.material_features == 'vegetarian') ? 'li-text-success' : 'li-text-danger']" style="text-transform: capitalize;">{{ product.material_features }}</span>
+                                                </li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.self_life">
+                                                    <span>Self Life</span>
+                                                    {{ product.self_life }} <span style="text-transform: capitalize;">{{ product.self_life_type }}</span>
+                                                </li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.handling_time">
+                                                    <span>Handling Time</span>{{ product.handling_time }} 
+                                                    <span style="text-transform: capitalize;">{{ product.handling_time_type }}</span>
+                                                </li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.media.length > 0"><span>Product brochure</span> <a :href="product.media[0].display_url" target="_blank">{{ product.media[0].display_name }}</a></li>
+                                                <li style="list-style-type: disclosure-closed;" v-if="product.product_custom_field2"><span>HSN Code</span>{{ product.product_custom_field2 }}</li>
                                             </ul>
                                         </div>
                                     </div>
-
-                                     <div id="ec-spt-nav-review" class="tab-pane fade" :class="[(tab == 'reviews') ? 'active' : '']">
+                                    <div id="ec-spt-nav-review" class="tab-pane fade" :class="[(tab == 'reviews') ? 'active' : '']">
                                         <div class="row">
                                             <div class="ec-t-review-wrapper">
                                                 <div class="ec-t-review-item" v-for="(review, index) in productReviews" :key="'review-' + index">
                                                     <div class="ec-t-review-content">
                                                         <div class="ec-t-review-top">
-                                                            <div class="ec-t-review-name">{{ review.name }}</div>
+                                                            <div class="ec-t-review-name" style="text-transform: capitalize;" v-if="review.contact">{{ review.contact.name }}</div>
                                                             <div class="ec-t-review-rating">
                                                                 <i v-for="f in 5" :key="'start-'+f" class="ecicon" :class="[(f <= review.star) ? 'eci-star fill' : 'eci-star-o']" ></i>
                                                             </div>
@@ -320,9 +605,8 @@ export default {
                                                         </div>
                                                     </div>
                                                 </div>
-
                                             </div>
-                                            <div class="ec-ratting-content">
+                                            <!-- <div class="ec-ratting-content">
                                                 <h3>Add a Review</h3>
                                                 <div class="ec-ratting-form">
                                                     <form action="#">
@@ -345,8 +629,12 @@ export default {
                                                         </div>
                                                     </form>
                                                 </div>
-                                            </div>
+                                            </div> -->
                                         </div>
+                                    </div>
+                                    <div id="ec-spt-nav-disclaimer" class="tab-pane fade" :class="[(tab == 'disclaimer') ? 'active' : '']">
+                                        <div class="ec-single-pro-tab-moreinfo" v-if="product.legal_disclaimer" v-html="product.legal_disclaimer"></div>
+                                        <div class="ec-single-pro-tab-moreinfo" v-else v-html="legal_disclaimer.legal_disclaimer"></div>
                                     </div>
                                 </div>
                             </div>
@@ -370,316 +658,21 @@ export default {
                                     <div class="col-lg-3 col-md-4 col-sm-6 col-xs-6 " v-for="product in relatedProduct" :key="product.id">
                                         <single-product :product="product"></single-product>
                                     </div>
-                                    <!-- 
-                                    <div class="col-lg-3 col-md-6 col-sm-6 col-xs-6 mb-6 pro-gl-content">
-                                        <div class="ec-product-inner">
-                                            <div class="ec-pro-image-outer">
-                                                <div class="ec-pro-image">
-                                                    <a href="product-left-sidebar.html" class="image">
-                                                        <img class="main-image"
-                                                            src="assets/images/product-image/6_1.jpg" alt="Product" />
-                                                        <img class="hover-image"
-                                                            src="assets/images/product-image/6_2.jpg" alt="Product" />
-                                                    </a>
-                                                    <span class="percentage">20%</span>
-                                                    <a href="#" class="quickview" data-link-action="quickview"
-                                                        title="Quick view" data-bs-toggle="modal"
-                                                        data-bs-target="#ec_quickview_modal"><img
-                                                            src="assets/images/icons/quickview.svg" class="svg_img pro_svg"
-                                                            alt="" /></a>
-                                                    <div class="ec-pro-actions">
-                                                        <a href="compare.html" class="ec-btn-group compare"
-                                                            title="Compare"><img src="assets/images/icons/compare.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                        <button title="Add To Cart" class=" add-to-cart"><img
-                                                                src="assets/images/icons/cart.svg" class="svg_img pro_svg"
-                                                                alt="" /> Add To Cart</button>
-                                                        <a class="ec-btn-group wishlist" title="Wishlist"><img
-                                                                src="assets/images/icons/wishlist.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="ec-pro-content">
-                                                <h5 class="ec-pro-title"><a href="product-left-sidebar.html">Round Neck T-Shirt</a></h5>
-                                                <div class="ec-pro-rating">
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star"></i>
-                                                </div>
-                                                <div class="ec-pro-list-desc">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum is simply dutmmy text ever since the 1500s, when an unknown printer took a galley.</div>
-                                                <span class="ec-price">
-                                                    <span class="old-price">$27.00</span>
-                                                    <span class="new-price">$22.00</span>
-                                                </span>
-                                                <div class="ec-pro-option">
-                                                    <div class="ec-pro-color">
-                                                        <span class="ec-pro-opt-label">Color</span>
-                                                        <ul class="ec-opt-swatch ec-change-img">
-                                                            <li class="active"><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/6_1.jpg"
-                                                                    data-src-hover="assets/images/product-image/6_1.jpg"
-                                                                    data-tooltip="Gray"><span
-                                                                        style="background-color:#e8c2ff;"></span></a></li>
-                                                            <li><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/6_2.jpg"
-                                                                    data-src-hover="assets/images/product-image/6_2.jpg"
-                                                                    data-tooltip="Orange"><span
-                                                                        style="background-color:#9cfdd5;"></span></a></li>
-                                                        </ul>
-                                                    </div>
-                                                    <div class="ec-pro-size">
-                                                        <span class="ec-pro-opt-label">Size</span>
-                                                        <ul class="ec-opt-size">
-                                                            <li class="active"><a href="#" class="ec-opt-sz"
-                                                                    data-old="$25.00" data-new="$20.00"
-                                                                    data-tooltip="Small">S</a></li>
-                                                            <li><a href="#" class="ec-opt-sz" data-old="$27.00"
-                                                                    data-new="$22.00" data-tooltip="Medium">M</a></li>
-                                                            <li><a href="#" class="ec-opt-sz" data-old="$35.00"
-                                                                    data-new="$30.00" data-tooltip="Extra Large">XL</a></li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-3 col-md-6 col-sm-6 col-xs-6 mb-6 pro-gl-content">
-                                        <div class="ec-product-inner">
-                                            <div class="ec-pro-image-outer">
-                                                <div class="ec-pro-image">
-                                                    <a href="product-left-sidebar.html" class="image">
-                                                        <img class="main-image"
-                                                            src="assets/images/product-image/7_1.jpg" alt="Product" />
-                                                        <img class="hover-image"
-                                                            src="assets/images/product-image/7_2.jpg" alt="Product" />
-                                                    </a>
-                                                    <span class="percentage">20%</span>
-                                                    <span class="flags">
-                                                        <span class="sale">Sale</span>
-                                                    </span>
-                                                    <a href="#" class="quickview" data-link-action="quickview"
-                                                        title="Quick view" data-bs-toggle="modal"
-                                                        data-bs-target="#ec_quickview_modal"><img
-                                                            src="assets/images/icons/quickview.svg" class="svg_img pro_svg"
-                                                            alt="" /></a>
-                                                    <div class="ec-pro-actions">
-                                                        <a href="compare.html" class="ec-btn-group compare"
-                                                            title="Compare"><img src="assets/images/icons/compare.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                        <button title="Add To Cart" class=" add-to-cart"><img
-                                                                src="assets/images/icons/cart.svg" class="svg_img pro_svg"
-                                                                alt="" /> Add To Cart</button>
-                                                        <a class="ec-btn-group wishlist" title="Wishlist"><img
-                                                                src="assets/images/icons/wishlist.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="ec-pro-content">
-                                                <h5 class="ec-pro-title"><a href="product-left-sidebar.html">Full Sleeve Shirt</a></h5>
-                                                <div class="ec-pro-rating">
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star"></i>
-                                                </div>
-                                                <div class="ec-pro-list-desc">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum is simply dutmmy text ever since the 1500s, when an unknown printer took a galley.</div>
-                                                <span class="ec-price">
-                                                    <span class="old-price">$12.00</span>
-                                                    <span class="new-price">$10.00</span>
-                                                </span>
-                                                <div class="ec-pro-option">
-                                                    <div class="ec-pro-color">
-                                                        <span class="ec-pro-opt-label">Color</span>
-                                                        <ul class="ec-opt-swatch ec-change-img">
-                                                            <li class="active"><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/7_1.jpg"
-                                                                    data-src-hover="assets/images/product-image/7_1.jpg"
-                                                                    data-tooltip="Gray"><span
-                                                                        style="background-color:#01f1f1;"></span></a></li>
-                                                            <li><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/7_2.jpg"
-                                                                    data-src-hover="assets/images/product-image/7_2.jpg"
-                                                                    data-tooltip="Orange"><span
-                                                                        style="background-color:#b89df8;"></span></a></li>
-                                                        </ul>
-                                                    </div>
-                                                    <div class="ec-pro-size">
-                                                        <span class="ec-pro-opt-label">Size</span>
-                                                        <ul class="ec-opt-size">
-                                                            <li class="active"><a href="#" class="ec-opt-sz"
-                                                                    data-old="$12.00" data-new="$10.00"
-                                                                    data-tooltip="Small">S</a></li>
-                                                            <li><a href="#" class="ec-opt-sz" data-old="$15.00"
-                                                                    data-new="$12.00" data-tooltip="Medium">M</a></li>
-                                                            <li><a href="#" class="ec-opt-sz" data-old="$20.00"
-                                                                    data-new="$17.00" data-tooltip="Extra Large">XL</a></li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-3 col-md-6 col-sm-6 col-xs-6 mb-6 pro-gl-content">
-                                        <div class="ec-product-inner">
-                                            <div class="ec-pro-image-outer">
-                                                <div class="ec-pro-image">
-                                                    <a href="product-left-sidebar.html" class="image">
-                                                        <img class="main-image"
-                                                            src="assets/images/product-image/1_1.jpg" alt="Product" />
-                                                        <img class="hover-image"
-                                                            src="assets/images/product-image/1_2.jpg" alt="Product" />
-                                                    </a>
-                                                    <span class="percentage">20%</span>
-                                                    <span class="flags">
-                                                        <span class="sale">Sale</span>
-                                                    </span>
-                                                    <a href="#" class="quickview" data-link-action="quickview"
-                                                        title="Quick view" data-bs-toggle="modal"
-                                                        data-bs-target="#ec_quickview_modal"><img
-                                                            src="assets/images/icons/quickview.svg" class="svg_img pro_svg"
-                                                            alt="" /></a>
-                                                    <div class="ec-pro-actions">
-                                                        <a href="compare.html" class="ec-btn-group compare"
-                                                            title="Compare"><img src="assets/images/icons/compare.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                        <button title="Add To Cart" class=" add-to-cart"><img
-                                                                src="assets/images/icons/cart.svg" class="svg_img pro_svg"
-                                                                alt="" /> Add To Cart</button>
-                                                        <a class="ec-btn-group wishlist" title="Wishlist"><img
-                                                                src="assets/images/icons/wishlist.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="ec-pro-content">
-                                                <h5 class="ec-pro-title"><a href="product-left-sidebar.html">Cute Baby Toy's</a></h5>
-                                                <div class="ec-pro-rating">
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star"></i>
-                                                </div>
-                                                <div class="ec-pro-list-desc">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum is simply dutmmy text ever since the 1500s, when an unknown printer took a galley.</div>
-                                                <span class="ec-price">
-                                                    <span class="old-price">$40.00</span>
-                                                    <span class="new-price">$30.00</span>
-                                                </span>
-                                                <div class="ec-pro-option">
-                                                    <div class="ec-pro-color">
-                                                        <span class="ec-pro-opt-label">Color</span>
-                                                        <ul class="ec-opt-swatch ec-change-img">
-                                                            <li class="active"><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/1_1.jpg"
-                                                                    data-src-hover="assets/images/product-image/1_1.jpg"
-                                                                    data-tooltip="Gray"><span
-                                                                        style="background-color:#90cdf7;"></span></a></li>
-                                                            <li><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/1_2.jpg"
-                                                                    data-src-hover="assets/images/product-image/1_2.jpg"
-                                                                    data-tooltip="Orange"><span
-                                                                        style="background-color:#ff3b66;"></span></a></li>
-                                                            <li><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/1_3.jpg"
-                                                                    data-src-hover="assets/images/product-image/1_3.jpg"
-                                                                    data-tooltip="Green"><span
-                                                                        style="background-color:#ffc476;"></span></a></li>
-                                                            <li><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/1_4.jpg"
-                                                                    data-src-hover="assets/images/product-image/1_4.jpg"
-                                                                    data-tooltip="Sky Blue"><span
-                                                                        style="background-color:#1af0ba;"></span></a></li>
-                                                        </ul>
-                                                    </div>
-                                                    <div class="ec-pro-size">
-                                                        <span class="ec-pro-opt-label">Size</span>
-                                                        <ul class="ec-opt-size">
-                                                            <li class="active"><a href="#" class="ec-opt-sz"
-                                                                    data-old="$40.00" data-new="$30.00"
-                                                                    data-tooltip="Small">S</a></li>
-                                                            <li><a href="#" class="ec-opt-sz" data-old="$50.00"
-                                                                    data-new="$40.00" data-tooltip="Medium">M</a></li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-3 col-md-6 col-sm-6 col-xs-6 mb-6 pro-gl-content">
-                                        <div class="ec-product-inner">
-                                            <div class="ec-pro-image-outer">
-                                                <div class="ec-pro-image">
-                                                    <a href="product-left-sidebar.html" class="image">
-                                                        <img class="main-image"
-                                                            src="assets/images/product-image/2_1.jpg" alt="Product" />
-                                                        <img class="hover-image"
-                                                            src="assets/images/product-image/2_2.jpg" alt="Product" />
-                                                    </a>
-                                                    <span class="percentage">20%</span>
-                                                    <span class="flags">
-                                                        <span class="new">New</span>
-                                                    </span>
-                                                    <a href="#" class="quickview" data-link-action="quickview"
-                                                        title="Quick view" data-bs-toggle="modal"
-                                                        data-bs-target="#ec_quickview_modal"><img
-                                                            src="assets/images/icons/quickview.svg" class="svg_img pro_svg"
-                                                            alt="" /></a>
-                                                    <div class="ec-pro-actions">
-                                                        <a href="compare.html" class="ec-btn-group compare"
-                                                            title="Compare"><img src="assets/images/icons/compare.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                        <button title="Add To Cart" class=" add-to-cart"><img
-                                                                src="assets/images/icons/cart.svg" class="svg_img pro_svg"
-                                                                alt="" /> Add To Cart</button>
-                                                        <a class="ec-btn-group wishlist" title="Wishlist"><img
-                                                                src="assets/images/icons/wishlist.svg"
-                                                                class="svg_img pro_svg" alt="" /></a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="ec-pro-content">
-                                                <h5 class="ec-pro-title"><a href="product-left-sidebar.html">Jumbo Carry Bag</a></h5>
-                                                <div class="ec-pro-rating">
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star fill"></i>
-                                                    <i class="ecicon eci-star"></i>
-                                                </div>
-                                                <div class="ec-pro-list-desc">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum is simply dutmmy text ever since the 1500s, when an unknown printer took a galley.</div>
-                                                <span class="ec-price">
-                                                    <span class="old-price">$50.00</span>
-                                                    <span class="new-price">$40.00</span>
-                                                </span>                                                
-                                                <div class="ec-pro-option">
-                                                    <div class="ec-pro-color">
-                                                        <span class="ec-pro-opt-label">Color</span>
-                                                        <ul class="ec-opt-swatch ec-change-img">
-                                                            <li class="active"><a href="#" class="ec-opt-clr-img"
-                                                                    data-src="assets/images/product-image/2_1.jpg"
-                                                                    data-src-hover="assets/images/product-image/2_2.jpg"
-                                                                    data-tooltip="Gray"><span
-                                                                        style="background-color:#fdbf04;"></span></a></li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div> 
-                                    -->
                                 </div>
                             </div>
                         </section>
                         <!-- related products -->
                     </div>
-
                 </div>
             </div>
         </section>
     </MainLayout>
 </template>
+<style>
+.li-text-success{
+    color:#198754 !important;
+}
+.li-text-danger{
+    color:#dc3545 !important;
+}
+</style>

@@ -10,6 +10,7 @@ use App\Models\Cart;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Address;
+use App\Models\Discount;
 use Auth;
 use Session;
 use Cookie;
@@ -18,78 +19,83 @@ class CheckoutController extends Controller
 {
     public function apply_coupon_code(Request $request)
     {
-        $coupon = Coupon::where('code', $request->code)->first();
+        
+        $coupon = Discount::where('code', $request->code)
+                    ->whereDate('starts_at', '<=', date('Y-m-d', strtotime('now')))
+                    ->whereDate('ends_at', '>=', date('Y-m-d', strtotime('now')))
+                    ->where('is_active', 1)->first();
         $response_message = array();
 
-        if ($coupon != null) {
-            if (strtotime(date('d-m-Y')) >= $coupon->start_date && strtotime(date('d-m-Y')) <= $coupon->end_date) {
-                if (CouponUsage::where('user_id', Auth::user()->id)->where('coupon_id', $coupon->id)->first() == null) {
+        if ($coupon != null) {            
+                if (CouponUsage::where('user_id', Auth::user()->id)->where('discount_id', $coupon->id)->count() < $coupon->coupan_uses) {
                     $coupon_details = json_decode($coupon->details);
-
+                    // $carts = Cart::where('user_id', Auth::user()->id)                                    
+                    //                 ->update();
                     $carts = Cart::where('user_id', Auth::user()->id)
-                                    ->where('owner_id', $coupon->user_id)
                                     ->get();
-
-                    if ($coupon->type == 'cart_base') {
-                        $subtotal = 0;
-                        $tax = 0;
-                        $shipping = 0;
-                        foreach ($carts as $key => $cartItem) {
-                            $subtotal += $cartItem['price'] * $cartItem['quantity'];
-                            $tax += $cartItem['tax'] * $cartItem['quantity'];
-                            $shipping += $cartItem['shipping_cost'];
-                        }
-                        $sum = $subtotal + $tax + $shipping;
-
-                        if ($sum >= $coupon_details->min_buy) {
-                            if ($coupon->discount_type == 'percent') {
-                                $coupon_discount = ($sum * $coupon->discount) / 100;
-                                if ($coupon_discount > $coupon_details->max_discount) {
-                                    $coupon_discount = $coupon_details->max_discount;
-                                }
-                            } elseif ($coupon->discount_type == 'amount') {
-                                $coupon_discount = $coupon->discount;
+                    $subtotal = 0;
+                    $tax = 0;
+                    $shipping = 0;
+                    $cartITEMS = [];
+                    foreach ($carts as $key => $cartItem) {
+                        if($coupon->blend_product_discount == 0){// exclude all item has product-discount
+                            if(is_null($cartItem['discount_type'])){
+                                $cartITEMS[] = $cartItem;
                             }
-
-                        }
-                    } elseif ($coupon->type == 'product_base') {
-                        $coupon_discount = 0;
-                        foreach ($carts as $key => $cartItem) {
-                            foreach ($coupon_details as $key => $coupon_detail) {
-                                if ($coupon_detail->product_id == $cartItem['product_id']) {
-                                    if ($coupon->discount_type == 'percent') {
-                                        $coupon_discount += ($cartItem['price'] * $coupon->discount / 100) * $cartItem['quantity'];
-                                    } elseif ($coupon->discount_type == 'amount') {
-                                        $coupon_discount += $coupon->discount * $cartItem['quantity'];
-                                    }
-                                }
+                        }else if($coupon->blend_product_discount == 1){
+                            $cartITEMS[] = $cartItem;
+                        }                         
+                    }
+                    
+                    $cItem = [];
+                    foreach ($cartITEMS as $key => $cartItem) {
+                        if($coupon->blend_with_deals == 0){// exclude all item has deal-discount
+                            if(is_null($cartItem['deal_id'])){
+                                $cItem[] = $cartItem;
+                            }
+                        }else if($coupon->blend_with_deals == 1){
+                            $cItem[] = $cartItem;
+                        }                       
+                    }
+                    if ($coupon->discount_base == 'product_base') {
+                        $cItems = $cItem;
+                        $cItem = [];
+                        $products = json_decode($coupon->products);
+                        foreach($cItems as $item){
+                            if(in_array($item->product_id, $products)){
+                                $cItem[] = $item;
                             }
                         }
                     }
-
-                    Cart::where('user_id', Auth::user()->id)
-                            ->where('owner_id', $coupon->user_id)
-                            ->update(
-                                    [
-                                        'discount' => $coupon_discount / $carts->count(),
-                                        'coupon_code' => $request->code,
-                                        'coupon_applied' => 1
-                                    ]
-                    );
-
+                    
+                    foreach($cItem as $item){
+                        if($coupon->discount_type == 'percentage'){
+                            $dis = number_format($item['price']*($coupon->discount_amount)/100,2);
+                            // dd($coupon->discount_amount);
+                        }else{
+                            $dis = $item['price'] - $coupon->discount_amount;
+                            if($item['price'] < $coupon->discount_amount){
+                                $dis = $item['price'];
+                            }
+                        }
+                        Cart::where('id', $item['id'])->update([
+                            'coupan_id' => $coupon->id,
+                            'coupan_discount_type' => $coupon->discount_type,
+                            'coupan_discount_amt' => $coupon->discount_amount,
+                            'coupan_discount' => $dis,
+                            'coupan_discount_start_date' => $coupon->starts_at,
+                            'coupan_discount_end_date' => $coupon->ends_at,
+                        ]);
+                    }
                     $response_message['status'] = 'success';
-                    $response_message['message'] = translate('Coupon has been applied');
+                    $response_message['message'] = 'Coupon has been applied';
                 } else {
                     $response_message['status'] = 'warning';
-                    $response_message['message'] = translate('You already used this coupon!');
+                    $response_message['message'] = 'You already used this coupon!';
                 }
-            } else {
-                $response_message['status'] = 'warning';
-                $response_message['message'] = translate('Coupon expired!');
-            }
         } else {
             $response_message['status'] = 'danger';
-            $response_message['message'] = translate('Invalid coupon!');
+            $response_message['message'] = 'Invalid coupon!';
         }
 
         $response_message['items'] = Cart::where('user_id', Auth::user()->id)->get();
@@ -102,9 +108,9 @@ class CheckoutController extends Controller
         Cart::where('user_id', Auth::user()->id)
                 ->update(
                         [
-                            'discount' => 0.00,
-                            'coupon_code' => '',
-                            'coupon_applied' => 0
+                            'coupan_discount_type' => null,
+                            'coupan_discount_amt' => null,
+                            'coupan_discount' => null,
                         ]
         );
 
@@ -116,7 +122,7 @@ class CheckoutController extends Controller
     public function store_shipping_info(Request $request)
     {
         if ($request->address_id == null) {
-            flash(translate("Please add shipping address"))->warning();
+            flash("Please add shipping address")->warning();
             return back();
         }
 
@@ -137,7 +143,7 @@ class CheckoutController extends Controller
                 ->get();
 
         if($carts->isEmpty()) {
-            flash(translate('Your cart is empty'))->warning();
+            flash('Your cart is empty')->warning();
             return redirect()->route('home');
         }
 
@@ -191,7 +197,7 @@ class CheckoutController extends Controller
             return view('frontend.payment_select', compact('carts', 'shipping_info', 'total'));
 
         } else {
-            flash(translate('Your Cart was empty'))->warning();
+            flash('Your Cart was empty')->warning();
             return redirect()->route('home');
         }
     }

@@ -14,7 +14,5 @@ export default {
 </script>
 <template>
     <span class="ec-price">
-        <span class="new-price">{{ currency }} {{ formatted_price }}</span>
-<!--         <span class="old-price">{{ currency }} {{ formatted_price }}</span>
- -->    </span>
+        <span class="new-price">{{ currency }} {{ formatted_price }}</span>    </span>
 </template>

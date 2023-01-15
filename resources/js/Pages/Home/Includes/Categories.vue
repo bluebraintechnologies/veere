@@ -12,11 +12,12 @@
                 <Carousel :settings='settings' :breakpoints='breakpoints' id="ec-cat-slider">
                     <Slide class="ec_cat_content" v-for="(sitem, sk) in slides" :key="'cat'+sk">
                         <div class="ec_cat_inner">
-                            <div class="ec-category-image">
-                                <img src="/images/icons/drink-7.svg" class="svg_img" :alt="sitem.name" />
+                            <div class="ec-category-image" style="width:40%;">
+                                <img :src="$media_url+sitem.image" class="svg_img" :alt="sitem.name" v-if="sitem.image"/>
+                                <img src="/images/icons/drink-7.svg" class="svg_img" :alt="sitem.name" v-else/>
                             </div>
-                            <div class="ec-category-desc">
-                                <h3> {{ sitem.name }} <span title="Category Items"></span></h3>
+                            <div class="ec-category-desc"  style="width:60%;">
+                                <h3 :title="sitem.name"> {{ sitem.name }} <span title="Category Items"></span></h3>
                                 <Link :href="route('category', sitem.slug)" class="cat-show-all">
                                     Show All <i class="ecicon eci-angle-double-right" aria-hidden="true"></i>
                                 </Link>

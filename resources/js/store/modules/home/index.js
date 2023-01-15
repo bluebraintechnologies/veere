@@ -9,8 +9,12 @@ const state = {
     allProducts : [],
     allCategories : [] ,
     authUser : [],
+    showCustomerLocationForm: true,
 }
 const mutations ={
+    PINCODE_FORM(state, payload) {
+        state.showCustomerLocationForm = payload
+    },
     GET_NEW_PRODUCTS(state, payload){
         state.newProducts = payload
     },
@@ -87,6 +91,7 @@ const actions = {
     },
 }
 const getters = {
+    showCustomerLocationForm: state => state.showCustomerLocationForm,
     newProducts : state => state.newProducts,
     dealsOfDay : state => state.dealsOfDay,
     allbestSellerProducts : state => state.allbestSellerProducts,

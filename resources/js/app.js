@@ -9,6 +9,11 @@ const site_url = document.getElementsByName('site_url')[0].content;
 const CSRF_TOKEN = document.getElementsByName('csrf-token')[0].content;
 const LOCAL_MEDIA_URL = window.atob(document.getElementsByName('local_token')[0].content);
 const MEDIA_URL = window.atob(document.getElementsByName('media_token')[0].content);
+const OFFER_TOKEN = window.atob(document.getElementsByName('offer_token')[0].content);
+const BANNER_TOKEN = window.atob(document.getElementsByName('banner_token')[0].content);
+const INVOICE_TOKEN = window.atob(document.getElementsByName('invoice_token')[0].content);
+
+
 
 import VueToast from 'vue-toast-notification';
 import 'vue-toast-notification/dist/theme-sugar.css';
@@ -23,7 +28,9 @@ createInertiaApp({
     setup({ el, app, props, plugin }) {
         store.dispatch("getAllCategories");
         store.dispatch("getnavItems");
-        const myApp = createApp({ render: () => h(app, props) })
+        const myApp = createApp({ 
+                render: () => h(app, props),
+            })
             .use(plugin)
             .use(VueSweetalert2)
             .use(store)
@@ -35,6 +42,9 @@ createInertiaApp({
             myApp.config.globalProperties.$media_url = MEDIA_URL;
             myApp.config.globalProperties.$site_url = site_url;
             myApp.config.globalProperties.$csrf_token = CSRF_TOKEN;
+            myApp.config.globalProperties.$offer_token = OFFER_TOKEN;
+            myApp.config.globalProperties.$invoice_token = INVOICE_TOKEN;
+            myApp.config.globalProperties.$banner_token = BANNER_TOKEN;
             myApp.mount(el);
         return myApp;
     },

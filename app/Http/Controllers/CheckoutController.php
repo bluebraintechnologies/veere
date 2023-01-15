@@ -10,6 +10,8 @@ use App\Models\Wishlist;
 use App\Models\Cart;
 use App\Models\Transaction;
 use App\Models\Address;
+use App\Models\Business;
+use App\Models\PaymentMethod;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Session;
@@ -27,12 +29,22 @@ class CheckoutController extends Controller
             $this->data['isUserLogged'] = 0;
             if (Auth::check()) {
                 $this->data['isUserLogged'] = 1;
+                $this->data['loggedinUserDetail'] = Auth()->user();
             }
             $user = Auth::user();
             $this->data['step'] = 'shipping';
             $this->data['addresses'] = Address::where('user_id', $user->id)->get();
-            $this->data['set_default'] = Address::where('user_id', $user->id)->where('set_default', 1)->select('id')->first();
-            $this->data['set_default_billing'] = Address::where('user_id', $user->id)->where('set_default_billing', 1)->select('id')->first();
+            $this->data['set_default'] = Address::where('user_id', $user->id)->where('set_default', 1)->pluck('id')->first();
+            $this->data['defaultShipping'] = Address::where('user_id', $user->id)->where('set_default', 1)->first();            
+            $this->data['set_default_billing'] = Address::where('user_id', $user->id)->where('set_default_billing', 1)->pluck('id')->first();
+            $this->data['defaultBilling'] = Address::where('user_id', $user->id)->where('set_default_billing', 1)->first();
+            $this->data['show_default_delivery_time_block'] = intval(Business::pluck('show_default_delivery_time_block')->first());
+            // dd($this->data);
+            if (Auth::check()) {
+                $this->data['isUserLogged'] = 1;
+                $this->data['loggedinUserDetail'] = Auth()->user();
+            }
+            $this->data['business'] = Business::find(1);
             return Inertia::render('Checkout/Shipping', $this->data);
         }
         return redirect()->route('dashboard');
@@ -96,14 +108,26 @@ class CheckoutController extends Controller
         $this->data['isUserLogged'] = 0;
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
         $user = auth()->user();
         $carts = Cart::where('user_id', Auth::user()->id)->count();
         if ($carts > 0) {
             $this->data['step'] = 'payment';
             $this->data['addresses'] = Address::where('user_id', $user->id)->get();
+            $table = "transaction_".Auth::user()->id."c";
+            $date = date('Y-m-d', strtotime('now'));
+            $this->data['vp'] = DB::table($table)                
+                ->whereDate('expiry_date', '>=', $date)
+                ->where('trn_type', 1)
+                ->where('status', 1)
+                ->sum('remaining');
+            $this->data['business'] = Business::find(1);
+            $this->data['payment_methods'] = PaymentMethod::where('status', 1)->orderBy('id', 'asc')->get();
             return Inertia::render('Checkout/Payment', $this->data);
         }
+        
+
         return redirect()->route('dashboard');
     }
 
@@ -113,6 +137,7 @@ class CheckoutController extends Controller
         $this->data['isUserLogged'] = 0;
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
+            $this->data['loggedinUserDetail'] = Auth()->user();
         }
         Session::forget('combined_order_id');
         Cart::where('user_id',  $combined_order->contact_id)->delete();

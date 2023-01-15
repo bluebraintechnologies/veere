@@ -17,11 +17,19 @@ export default {
         ...mapActions(['getWishlistItems', 'getCartItems']),
         paymode(dev) {
             return dev.replace(/[^a-zA-Z0-9]/g, ' '); 
+        },
+        goBack() {
+            // if (window.history.state.back === '/reset-password') {
+            //     this.$router.push({ name: 'Home' })
+            // } else {
+            //     this.$router.go(-1)
+            // }
         }
     },
     mounted() {
         this.getWishlistItems();
         this.getCartItems();
+        this.goBack()
     }
     
 };
@@ -51,7 +59,7 @@ export default {
             </div>
             <div class="col-lg-3 col-md-6">
                 <div class="ec-vendor-dashboard-sort-card color-orange">
-                    <h5>Wishlisted</h5>
+                    <h5>Wishlist</h5>
                     <h3>{{ synop.wishlists }}<span> products</span></h3>
                 </div>
             </div>

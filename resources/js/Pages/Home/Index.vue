@@ -1,6 +1,6 @@
 <script>
     import MainLayout from "@/Layouts/Main.vue";
-
+    import { mapGetters, mapActions } from 'vuex'
     import Categories from "./Includes/Categories.vue";
     import MainSlider from "./Includes/MainSlider.vue";
     import Blogs from "./Includes/Blogs.vue";
@@ -24,89 +24,188 @@
         },
         data() {
             return {
+                featured_category: [],
+                featured_products: [],
+                best_sellers: [],
+                top_selling: [],
+                top_rated: [],
+                new_arrivals: [],
                 sideCartStatus: false,
+                sliders: [],
+                pbanner1_detail:'',
+                pbanner2_detail:'',
+                home_offer:'',
             };
         },
         props: {
-            sliders: [Array, Object],
+            // sliders: [Array, Object],
             categories: [Array, Object],
-            featured_category: [Array, Object],
-            featured_products: [Array, Object],
-            top_selling: [Array, Object],
-            top_rated: [Array, Object],
-            best_sellers: [Array, Object],
-            new_arrivals: [Array, Object],
+            // best_sellers: [Array, Object],
+            // top_selling: [Array, Object],
+            // top_rated: [Array, Object],
+            // new_arrivals: [Array, Object],
+            // home_offer: [Array, Object],
+            // pbanner1_detail:Object,
+            // pbanner2_detail:Object,
+            footerImages: [Array, Object],
         },
-
+        computed: {
+            ...mapGetters(['dealsProduct']),
+        },
         methods: {
             displaySideCart() {
                 this.sideCartStatus = !this.sideCartStatus;
             },
+            getFeaturedProducts(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.post('/api/get-featured-products/'+ location).then((response) => {
+                    this.featured_category = response.data.featured_category
+                    this.featured_products = response.data.featured_products
+                })                
+            },
+            getBestSellerProducts(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.post('/api/get-best-seller-product-mul-location/'+ location).then((response) => {
+                    this.best_sellers = response.data.best_sellers
+                })
+            },
+            getTopSellingProducts(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.post('/api/get-top-selling-product-mul-location/'+ location).then((response) => {
+                    this.top_selling = response.data.top_selling
+                })
+                //top_selling
+            }
+            ,
+            getTopRatedgProducts(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.post('/api/get-top-rated-product-mul-location/'+ location).then((response) => {
+                    this.top_rated = response.data.top_rated
+                })
+                //top_rated
+            },
+            getNewArrivalProducts(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.post('/api/get-new-arrival-product-mul-location/'+ location).then((response) => {
+                    this.new_arrivals = response.data.new_arrivals
+                })
+                //new_arrivals
+            },
+            getSliders(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.get('/api/get-sliders-mul-location?location=' + location).then((response) => {
+                    this.sliders = response.data.sliders
+                })
+            },
+            getTopBanner(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.get('/api/get-top-banner-mul-location?location=' + location).then((response) => {
+                    this.pbanner1_detail = response.data.pbanner1_detail
+                })
+            },
+            getBottomBanner(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.get('/api/get-bottom-banner-mul-location?location=' + location).then((response) => {
+                    this.pbanner2_detail = response.data.pbanner2_detail
+                })
+            },
+            getHomeOffer(){
+                let location
+                if(localStorage.getItem("location")){
+                    location = localStorage.getItem("location")
+                }else if(localStorage.getItem("temp_location")){
+                    location = localStorage.getItem("temp_location")
+                }
+                axios.get('/api/get-home-offers-mul-location?location=' + location).then((response) => {
+                    this.home_offer = response.data.home_offer
+                })
+            }
         },
+        created(){
+            this.getHomeOffer()
+            this.getTopBanner()
+            this.getBottomBanner()
+            this.getSliders()
+            this.getFeaturedProducts()
+            this.getBestSellerProducts()
+            this.getTopSellingProducts()
+            this.getTopRatedgProducts()
+            this.getNewArrivalProducts()
+        }
     };
 </script>
 <template>
     <head title="Home" />
     <MainLayout>
         <MainSlider :sliders="sliders" />
-            <section class="section ec-product-tab section-space-p">
-                <div class="container">
-                    <FeaturedProducts :products="featured_products" :categories="featured_category" />
-                    <ProductsGroup :top-selling="top_selling" :top-rated="top_rated" :best-sellers="best_sellers" :new-arrivals="new_arrivals" />
-                </div>
-            </section>
-            <Banners />
-            <section class="section ec-product-tab section-space-p">
+            <Offers :pdetails="pbanner1_detail" v-if="pbanner1_detail && pbanner1_detail.status"/>
+            <section class="section ec-product-tab section-space-p" v-if="dealsProduct.length > 0" >
                 <div class="container">
                     <Deal />
                 </div>
             </section>
-            <Offers />
-            <Blogs />
+            <section class="section ec-product-tab section-space-p">
+                <div class="container">
+                    <FeaturedProducts :products="featured_products" :categories="featured_category" v-if="featured_products.length > 0 && featured_category.length > 0"/>
+                    <ProductsGroup  :top-selling="top_selling" :top-rated="top_rated" :best-sellers="best_sellers" :new-arrivals="new_arrivals" />
+                </div>
+            </section>
+            <Banners :banners="home_offer"/>
+            
+            <Offers :pdetails="pbanner2_detail" v-if="pbanner2_detail && pbanner2_detail.status"/>
+            <!-- <Blogs /> -->
             <Categories :slides="categories" />
             <section class="section ec-ser-spe-section">
                 <div class="d-flex ec_ser_block justify-content-center">
-                    <div class="ec_ser_content">
+                    <div class="ec_ser_content" v-for="(footer, index) in footerImages" :key="'footer-'+footer.id">
                         <div class="ec_ser_inner">
-                            <div class="ec-service-image">
-                                <img src="/images/icons/service_4_2.svg" class="svg_img ser_svg" alt="" />
+                            <div class="ec-service-image" style="width:50px;">
+                                <img :src="$media_url+footer.image" class="svg_img ser_svg" alt="" v-if="footer.image"/>
+                                <img src="/images/icons/service_4_2.svg" class="svg_img ser_svg" alt="" v-else/>
                             </div>
                             <div class="ec-service-desc">
-                                <h2>Fast delivery</h2>
-                                <p>NCR Orders Only</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ec_ser_content">
-                        <div class="ec_ser_inner">
-                            <div class="ec-service-image">
-                                <img src="/images/icons/service_4_3.svg" class="svg_img ser_svg" alt="" />
-                            </div>
-                            <div class="ec-service-desc">
-                                <h2>Make in india</h2>
-                                <p>All products are made in india</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ec_ser_content">
-                        <div class="ec_ser_inner">
-                            <div class="ec-service-image">
-                                <img src="/images/icons/service_4_4.svg" class="svg_img ser_svg" alt="" />
-                            </div>
-                            <div class="ec-service-desc">
-                                <h2>Uncompromising quality</h2>
-                                <p>We believe in quality</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ec_ser_content">
-                        <div class="ec_ser_inner">
-                            <div class="ec-service-image">
-                                <img src="/images/icons/service_4_5.svg" class="svg_img ser_svg" alt="" />
-                            </div>
-                            <div class="ec-service-desc">
-                                <h2>Secure Payment</h2>
-                                <p>All cards accepted</p>
+                                <h2>{{ footer.heading }}</h2>
+                                <p>{{ footer.title }}</p>
                             </div>
                         </div>
                     </div>

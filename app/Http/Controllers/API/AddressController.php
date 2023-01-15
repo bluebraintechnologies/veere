@@ -88,6 +88,18 @@ class AddressController extends Controller
         Address::where('user_id', Auth::user()->id)->where('id', $billingAddress)->update(['set_default_billing' => 1]);   
         return ['status' => 'success'];
     }
+    public function setDefaultShippingAddress(Request $request){
+        $shipAddress = $request->shipAddress;
+        Address::where('user_id', Auth::user()->id)->update(['set_default' => null]);
+        Address::where('user_id', Auth::user()->id)->where('id', $shipAddress)->update(['set_default' => 1]);
+        return ['status' => 'success'];
+    }
+    public function setDefaultBillingAddress(Request $request){
+        $billingAddress = $request->billingAddress;
+        Address::where('user_id', Auth::user()->id)->update(['set_default_billing' => null]);
+        Address::where('user_id', Auth::user()->id)->where('id', $billingAddress)->update(['set_default_billing' => 1]);   
+        return ['status' => 'success'];
+    }
     public function unsetDefaultShippingBillingAddress (){
         Address::where('user_id', Auth::user()->id)->update(['set_default' => null]);
         Address::where('user_id', Auth::user()->id)->update(['set_default_billing' => null]);

@@ -24,11 +24,20 @@ export default {
         ...mapGetters(['wishlistItems'])
     },
     methods: {
-        ...mapActions(['getWishlistItems', 'removeWishlistItem']),
+        ...mapActions(['getWishlistItems', 'removeWishlistItem', 'addCartItem', 'decreaseCartItem']),
         getWishlistItems(){
             axios.get('/api/get-wishlist-items').then((response) => {
                 this.allWishlistItems = response.data
             })
+        },
+        checklistToCart(){
+            this.allWishlistItems.forEach((ele) => {
+                this.addCartItem([this, {id : ele.id, quantity : 1}])
+                
+            })
+        },
+        refreshList(){
+            this.getWishlistItems()
         }
     },
     mounted() {
@@ -45,12 +54,13 @@ export default {
                 <h5>Your Wishlist</h5>
                 <div class="ec-header-btn">
                     <Link class="btn btn-lg btn-primary" :href="route('home')">Shop Now</Link>
+                    <!-- <button type="button" class="btn btn-lg btn-primary" @click="checklistToCart()">Reorder</button> -->
                 </div>
             </div>
             <div class="ec-vendor-card-body">
                 <div class="row">
-                    <div class="col-lg-4 col-md-6 col-sm-6 col-xs-6 ec-product-content"  v-for="(pc,pk) in allWishlistItems" :key="'fproduct'+pk">
-                        <single-grid-product :product="pc" ></single-grid-product>
+                    <div class="col-sm-4 ec-all-product-block"  v-for="(pc,pk) in allWishlistItems" :key="'fproduct'+pk">
+                        <single-grid-product @referesh-checklist="refreshList()" :product="pc" ></single-grid-product>
                     </div>
                     <!-- <pagination class="mt-6" :wishlists="wishlists" /> -->
                 </div>

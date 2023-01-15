@@ -42,7 +42,7 @@
                                                         <th></th>
                                                     </tr>
                                                 </thead>
-                                                <tbody v-if="cartQuantity >= 1">
+                                                <tbody v-if="(cartQuantity >= 0)">
                                                     <cart-item :item="citem" v-for="(citem, ck) in cartItems" :key="'cart-item-'+ck" />
                                                 </tbody>
                                                 <tbody v-else>
@@ -50,6 +50,7 @@
                                                 </tbody>
                                             </table>
                                         </div>
+                                        <!-- <p>Note : Order above {{ currency }} {{ reward_point_setting.rc_order_max_value }}, will give you {{ reward_point_setting.rp_name }}</p> -->
                                         <div class="row">
                                             <div class="col-lg-12">
                                                 <div class="ec-cart-update-bottom">
@@ -75,51 +76,45 @@
                                             <div>
                                                 <span class="text-left">Sub-Total</span>
                                                 <span class="text-right">
-                                                    <price :price="cartItemsPrice" :currency="currencyIcon"></price>
+                                                    <price :price="cartItemsPrice" :currency="currency"></price>
                                                 </span>
                                             </div>
-                                            <div>
-                                                <span class="text-left">Tax (CGST + SGST)</span>
+                                            <!-- <div>
+                                                <span class="text-left">Tax (GST)</span>
                                                 <span class="text-right">
-                                                    <price :price="cartTotalTax" :currency="currencyIcon"></price>
+                                                    <price :price="cartTotalTax" :currency="currency"></price>
                                                 </span>
-                                            </div>
+                                            </div> -->
                                             <div>
                                                 <span class="text-left">Delivery Charges</span>
-                                                <span class="text-right">
-                                                    <price :price="cartTotalShipping" :currency="currencyIcon"></price>
+                                                <span class="text-right" >
+                                                    <price :price="deliveryCharges" :currency="currency"></price>
                                                 </span>
                                             </div>
                                             <div>
                                                 <span class="text-left">Discount</span>
                                                 <span class="text-right" v-if="cartTotalDiscount >= 1">
-                                                    <price :price="cartTotalDiscount" :currency="currencyIcon"></price>
-                                                </span>                                                
+                                                    <price :price="cartTotalDiscount" :currency="currency"></price>
+                                                </span>
                                             </div>
-                                            <!-- <div>
+                                            <div v-if="cartTotalCoupanDiscount >= 1">
                                                 <span class="text-left">Coupan Discount</span>
-                                                <span class="text-right" v-if="cartTotalDiscount >= 1">
-                                                    <price :price="cartTotalDiscount" :currency="currencyIcon"></price> 
-                                                    <a class="text-danger" href="javascript:;" @click="removeInCouponCode()"> X </a>
+                                                <span class="text-right" >
+                                                    <price :price="cartTotalCoupanDiscount" :currency="currency"></price> 
                                                 </span>
-                                                <span class="text-right" v-else>
-                                                    <a class="ec-cart-coupan" @click="showCoupon = !showCoupon">Apply Coupan</a>
-                                                </span>
-                                            </div> -->
-                                            <div class="ec-cart-coupan-content" :style="(showCoupon && cartTotalDiscount == 0)?'display:block':'display:none'">
-                                                <div class="ec-cart-coupan-form ">
-                                                    <input class="ec-coupan" type="text" placeholder="Enter Coupan Code" name="ec-coupan" v-model="couponcode">
-                                                    <button class="ec-coupan-btn button btn-primary" type="button" @click="addInCouponCode()">Apply</button>
-                                                </div>
                                             </div>
                                             <div class="ec-cart-summary-total">
                                                 <span class="text-left">Total Amount</span>
-                                                <span class="text-right">
-                                                    <price :price="grandTotal" :currency="currencyIcon"></price>
+                                                <span class="text-right">                                                    
+                                                    <price :price="grandTotalCart" :currency="currency"></price>
                                                 </span>
                                             </div>
                                         </div>
-
+                                        <div class="discount-container" v-if="cartTotalDiscount + cartTotalCoupanDiscount > 0">
+                                            <div class="discount-flex-item">You will save 
+                                                <price :price="cartTotalDiscount + cartTotalCoupanDiscount" :currency="currency"></price>
+                                                on this order</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -132,13 +127,11 @@
     </GuestLayout>
 </template>
 <script>
-import GuestLayout from "@/Layouts/Main.vue";
-
-import { mapGetters, mapActions } from 'vuex';
-import Price from '@/Pages/Product/Elemants/Price.vue';
-import CartItem from './Includes/CartItem.vue';
-
-
+    import GuestLayout from "@/Layouts/Main.vue";
+    import { mapGetters, mapActions } from 'vuex';
+    import Price from '@/Pages/Product/Elemants/Price.vue';
+    import CartItem from './Includes/CartItem.vue';
+    
 export default {
     emits: ["closeSidebar"],
     data() {
@@ -146,32 +139,50 @@ export default {
             showCoupon:false,
             couponcode:'',
             loading:false,
-            pincode:''
         }
     },
     components: {
         Price,
         GuestLayout,
-        CartItem
+        CartItem,
+        
     },
     props: {
-        showCart: [Boolean],
+        business:[Object]
     },
     computed: {
-        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'currency', 'cartItemsPrice']),
-        currencyIcon() {
-            return this.currency;
+        ...mapGetters(['cartItems', 'currency', 'cartTotal', 'cartQuantity', 'grandTotal', 'cartTotalShipping', 'cartTotalTax', 'cartTotalDiscount', 'shipAddress', 'billingAddress', 'deliveryTime', 'cartItemsPrice', 'cartTotalCoupanDiscount', 'reward_point_setting']),
+        grandTotalCart(){
+            if(parseFloat(this.grandTotal) > parseFloat(this.business.delivery_cap)){
+                return parseFloat(this.grandTotal)
+            }else{
+                return parseFloat(this.grandTotal) + parseFloat(this.business.delivery_charges)
+            }
         },
-    },
-    methods: {
-        ...mapActions(['addCouponCode', 'removeCouponCode']),
-        addInCouponCode() {
-            this.addCouponCode([this, {code:this.couponcode}])
-        },
-        removeInCouponCode(code) {
-            this.removeCouponCode([this, {code:code}])
+        deliveryCharges(){
+            if(parseFloat(this.grandTotal) > parseFloat(this.business.delivery_cap)){
+                return 0
+            }else{
+                return parseFloat(this.business.delivery_charges)
+            }
         }
     },
-   
+    methods: {
+        ...mapActions(['addCouponCode', 'removeCouponCode', 'updateCartAddress', 'updateCartBillingAddress', 'updateDeliveryTiming']),
+    },
 };
 </script>
+<style>
+    .discount-container{
+        display:flex;
+        justify-content: center;
+        flex-direction: row;
+        border-top: 1px solid #e7e7e7;
+    }
+    .discount-flex-item{
+        font-weight: 700;
+        color: #22d381;
+        padding-top: 10px;
+        margin: unset;
+    }
+</style>

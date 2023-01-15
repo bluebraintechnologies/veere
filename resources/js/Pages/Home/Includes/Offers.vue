@@ -3,7 +3,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-12">
-                    <img src="/images/offer.png" class="" alt="" />
+                    <img :src="this.$banner_token+pdetails.image" alt="" />
                 </div>
             </div>
         </div>
@@ -11,6 +11,8 @@
 </template>
 <script>
 export default {
-    
+    props:{
+        pdetails: Object
+    }
 }
 </script>
