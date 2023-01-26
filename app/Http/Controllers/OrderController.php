@@ -174,23 +174,23 @@ class OrderController extends Controller
             'user_id' => Auth::user()->id
         ]);
         $business = Business::first();
-        // if ($reward_payment) {
-        //     $rp_name = $business->rp_name;
-        //             if($business->cus_rc_name){
-        //                 $rp_name = $business->cus_rc_name;
-        //             }
-        //     DB::table($customer_table)->insert([
-        //         'order_id' => $txn->id,
-        //         'description' => 'you have used '.$reward_payment.' '.$rp_name.' pay for order ',
-        //         'amt' => $reward_payment,
-        //         'remaining' => $reward_payment,
-        //         'expiry_date' => null,
-        //         'expiry_date' => date('Y-m-d', strtotime('now')),
-        //         'expiry' => null,
-        //         'trn_type' => 2,
-        //         'status' => 1,
-        //     ]);
-        // }
+        if ($reward_payment) {
+            $rp_name = $business->rp_name;
+            if($business->cus_rc_name){
+                $rp_name = $business->cus_rc_name;
+            }
+            DB::table($customer_table)->insert([
+                'order_id' => $txn->id,
+                'description' => 'you have used '.$reward_payment.' '.$rp_name.' pay for order ',
+                'amt' => $reward_payment,
+                'remaining' => $reward_payment,
+                'expiry_date' => null,
+                'expiry_date' => date('Y-m-d', strtotime('now')),
+                'expiry' => null,
+                'trn_type' => 2,
+                'status' => 1,
+            ]);
+        }
         //check for reward point
         $rc_order_max_value = $business->rc_order_max_value;
         if($rc_order_max_value < $total){
@@ -219,35 +219,34 @@ class OrderController extends Controller
                         'trn_type' => 1
                     ]); 
                 }
-                // $user_id = Auth::user()->id;
-                // $user = User::find($user_id);
-                // $referer_code = $user->referer_code;
-                // $agent = Agent_reg::where('referer_code', 'like', $referer_code)->first();
-                // if($agent){
-                //     if($agent->agent_type_id){
-                //         $agent_type = AgentType::find($agent->agent_type_id);
-                //         $agent_commission = AgentCommission::where('agent_type_id', $agent->agent_type_id)->orderBy('agent_type_id', 'desc')->first();
-                //         if($agent_commission->order_commision_type == 'dicount'){
-                //             $agent_reward_points = intval($total*$agent_commission->order_commission/100);
-                //         } else{
-                //             $agent_reward_points = intval($agent_commission->order_commission);
-                //         }
+                $user_id = Auth::user()->id;
+                $user = User::find($user_id);
+                $referer_code = $user->referer_code;
+                $agent = Agent_reg::where('referer_code', 'like', $referer_code)->first();
+                if($agent){
+                    if($agent->agent_type_id){
+                        $agent_type = AgentType::find($agent->agent_type_id);
+                        $agent_commission = AgentCommission::where('agent_type_id', $agent->agent_type_id)->orderBy('agent_type_id', 'desc')->first();
+                        if($agent_commission->order_commision_type == 'dicount'){
+                            $agent_reward_points = intval($total*$agent_commission->order_commission/100);
+                        } else{
+                            $agent_reward_points = intval($agent_commission->order_commission);
+                        }
 
-                //         $agent_table = "transaction_".$agent->id."a";
-                //         if (Schema::hasTable($agent_table)) {
-                //             DB::table($agent_table)->insert([
-                //                 'order_id' => $txn->id,
-                //                 'description' => 'you have earned '.$agent_reward_points.' '.$business->rp_name,
-                //                 'amt' => $agent_reward_points,
-                //                 'remaining' => $agent_reward_points,
-                //                 'expiry_date' => date('Y-m-d', strtotime('now') + 3600*24*$business->rc_expiry),
-                //                 'expiry' => strtotime('now') + 3600*24*$business->rc_expiry,
-                //                 'trn_type' => 1
-                //             ]);
-                //         }
-                //     }
-                // }
-
+                        $agent_table = "transaction_".$agent->id."a";
+                        if (Schema::hasTable($agent_table)) {
+                            DB::table($agent_table)->insert([
+                                'order_id' => $txn->id,
+                                'description' => 'you have earned '.$agent_reward_points.' '.$business->rp_name,
+                                'amt' => $agent_reward_points,
+                                'remaining' => $agent_reward_points,
+                                'expiry_date' => date('Y-m-d', strtotime('now') + 3600*24*$business->rc_expiry),
+                                'expiry' => strtotime('now') + 3600*24*$business->rc_expiry,
+                                'trn_type' => 1
+                            ]);
+                        }
+                    }
+                }
             }
                 
         }

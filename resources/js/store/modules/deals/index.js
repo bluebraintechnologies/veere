@@ -12,12 +12,12 @@ const mutations = {
 }
 const actions = {
     getDealItems({ commit }) {
-        let location
+        let location = 1
         if(localStorage.getItem("location")){
             location = localStorage.getItem("location")
         }else if(localStorage.getItem("temp_location")){
             location = localStorage.getItem("temp_location")
-        }   
+        }
         axios.get('/api/get-deal-items?location=' + location).then((response) => {
             commit('UPDATE_Deals_ITEMS', response.data)
         });

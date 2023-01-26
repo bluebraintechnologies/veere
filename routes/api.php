@@ -113,4 +113,11 @@ Route::get('/get-top-banner-mul-location', [App\Http\Controllers\API\HomeControl
 Route::get('/get-bottom-banner-mul-location', [App\Http\Controllers\API\HomeController::class, 'getBottomBannerMulLocation']);
 Route::get('/get-home-offers-mul-location', [App\Http\Controllers\API\HomeController::class, 'getHomeOffersMulLocation']);
 Route::get('/get-offers-mul-location', [App\Http\Controllers\API\HomeController::class, 'getOffersMulLocation']);
+Route::get('/get-street-address-from', [App\Http\Controllers\API\HomeController::class, 'getStreetAddressFrom']);
+Route::get('/check-cart-item-location', [App\Http\Controllers\API\CartController::class, 'checkCartItemLocation']);
+Route::get('/delete-other-location-items', [App\Http\Controllers\API\CartController::class, 'deleteOtherLocationItems']);
+Route::post('/is-account-verified', [App\Http\Controllers\HomeController::class, 'isAccountVerified']);
+Route::post('/check-cartI-tem-deliveribility-final', [App\Http\Controllers\API\HomeController::class, 'checkCartItemDeliveribilityFinal']);
+Route::get('/store-address-in-local-storage', [App\Http\Controllers\API\HomeController::class, 'storeAddressInLocalStorage']);
+
 

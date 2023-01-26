@@ -19,9 +19,9 @@ export default {
             showCookieBanner : true,
             cookieAccepted: false,
             showNavigation:false,
-            pincode : '',
-            address:'',
-            // showCustomerLocationForm:true, // to show address selection form
+            pincode:'',            
+            addresses:'',
+            selectedAddress:'',
             
         };
     },
@@ -37,36 +37,54 @@ export default {
             this.showNavigation = !this.showNavigation;
         },
         saveCookieStatus(){
-            // this.setCookieStatus();
-            localStorage.setItem("user_accept_cookie", 'accepted')
+            localStorage.setItem("user_accept_cookie", 1)
             this.cookieAccepted = localStorage.getItem("user_accept_cookie")
         },
         checkPincode(){
             // before saving check pincode exist in our system of not
-            if(this.pincode == ''){
-                this.$toast.error('Please enter pin code.');
+            if(this.pincode == '' && this.selectedAddress == ''){
+                this.$toast.error('Please select address or enter pin code.');
                 return false
             }
-            axios.post('api/check-pincode-in-system', {pincode : this.pincode}).then((response) => {
+            var pincode;
+            if(this.pincode != '' ){
+                pincode = this.pincode
+            }
+            if(this.selectedAddress != '' ){
+                pincode = this.selectedAddress
+            }
+            this.pincode = pincode
+            axios.post('/api/check-pincode-in-system', {pincode : pincode}).then((response) => {
                 if(response.data.available){
                     // save this pincode in local storage
                     localStorage.setItem("pincode", this.pincode)
                     localStorage.setItem("location", response.data.location)
+                    localStorage.removeItem("temp_pincode")
+                    localStorage.removeItem("temp_location")
                     location.reload()
                 }else{
                     this.$toast.error('Sorry, our service is not available at this location.');
                 }
-            })
+            }) 
+                        
             // get get data account to pincode mapping with business location
         },
         cancelLocation(){
             // if user refuse to give location
-            localStorage.setItem("temp_pincode", 110001)
-            localStorage.setItem("temp_location", 1)
-            location.reload()
+            if(localStorage.getItem("pincode")){                
+                this.$store.commit('PINCODE_FORM', false)
+            }else{
+                if(localStorage.getItem("temp_pincode")){
+                    this.$store.commit('PINCODE_FORM', false)
+                }else{
+                    localStorage.setItem("temp_pincode", 110001)
+                    localStorage.setItem("temp_location", 1)
+                    location.reload()
+                }
+            }
         },
         getStockDetailsInfo(){
-            let location
+            let location = 1
             if(localStorage.getItem("location")){
                 location = localStorage.getItem("location")
             }else if(localStorage.getItem("temp_location")){
@@ -77,69 +95,74 @@ export default {
         locatorButtonPressed() {
             navigator.geolocation.getCurrentPosition(
                 position => {
-                    console.log(position.coords.latitude);
-                    console.log(position.coords.longitude);
                     this.getStreetAddressFrom(position.coords.latitude, position.coords.longitude)
                 },
                 error => {
-                    console.log(error.message);
+                    this.$toast.error('Sorry for inconvenience, please try again!!');    
                 },
-            )
+            )            
         },
-        async getStreetAddressFrom(lat, long) {
-            try {
-                await axios.get(
-                "https://maps.googleapis.com/maps/api/geocode/json?latlng=" +
-                    lat +
-                    "," +
-                    long +
-                    "&key=AIzaSyB3GgFD8YthniTjvyzOr-b6jw-CftRmy4o",
-                    {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+        getStreetAddressFrom(lat, long){
+            axios.get('/api/get-street-address-from?lat=' + lat +'&long=' + long).then((response) => {                
+                if(parseInt(response.data.postal_code)){
+                    var p = parseInt(response.data.postal_code)
+                    axios.post('/api/check-pincode-in-system', {pincode : response.data.postal_code}).then((response) => {
+                        if(response.data.available){
+                            // save this pincode in local storage
+                            localStorage.setItem("pincode", this.pincode)
+                            localStorage.setItem("location", response.data.location)
+                            localStorage.removeItem("temp_pincode")
+                            localStorage.removeItem("temp_location")
+                            location.reload()
+                        }else{
+                            this.$toast.error('Sorry, our service is not available at postal code: ' + p);
+                        }
+                    })
+                }else{
+                    this.$toast.error('Please select address or enter pin code.');
+                }
+            })
         },
-        responseType: 'json',
-        withCredentials: true,
-    }
-                ).then((res) => {
-                    console.log('s')
-                    console.log(res)
-                    if(res.error_message) {
-                        console.log(res.error_message)
-                    } else {
-                        this.address = res.results[0].formatted_address;
+        storeAddressInLocalStorage(){
+            if(localStorage.getItem('user_accept_cookie')){
+                axios.get('/api/store-address-in-local-storage').then((response) => {
+                    if(response.data.address.length > 0){
+                        if(localStorage.getItem('addresses')){
+                            localStorage.removeItem('addresses')
+                        }
+                        localStorage.setItem('addresses', JSON.stringify(response.data.address))
                     }
                 })
-            } catch (error) {
-                console.log(error.message);
-            } 
+            }
         }
     },
     created(){
-        if(localStorage.getItem("temp_pincode")){
-            console.log(1)
+        if(localStorage.getItem('addresses')){
+            this.addresses = JSON.parse(localStorage.getItem('addresses'))
+        }
+        if(localStorage.getItem("pincode")){            
             this.$store.commit('PINCODE_FORM', false)
-        }else if(localStorage.getItem("pincode")){
-            console.log(2)
+        }else if(localStorage.getItem("temp_pincode")){            
             this.$store.commit('PINCODE_FORM', false)
         }
-        if(this.showCustomerLocationForm){
-            console.log(3)
-            //this.$store.commit('PINCODE_FORM', false)
-        }else{
-            console.log(4)
+        // if(this.showCustomerLocationForm){            
+        //     //this.$store.commit('PINCODE_FORM', false)
+        // }else{            
             this.getStockDetailsInfo();
             this.getDealItems();
             this.getCartItems();
-            this.cookieAccepted = localStorage.getItem("user_accept_cookie")
-            let location = localStorage.getItem('location')
-        }
+            if(localStorage.getItem("user_accept_cookie")){
+                this.cookieAccepted = localStorage.getItem("user_accept_cookie")
+            }
+            
+        // }
     },
     mounted() {
         // this.locatorButtonPressed()
         if(this.$page.props.auth.user) {
         }
         this.getWishlistItems();
+        this.storeAddressInLocalStorage()
         // $('#customerLocation').modal('show');
     }
 
@@ -148,7 +171,8 @@ export default {
 
 <template>
     <div>
-        <div v-if="!showCustomerLocationForm">
+        
+        
             <theme-header @show-sidecart="displaySideCart()" @show-mobilemenu="changeNavStatus()" :showNavigation="showNavigation" />
             <side-cart @close-sidebar="displaySideCart()" :showCart="sideCartStatus" />
             <slot />
@@ -186,13 +210,13 @@ export default {
                     </div>
                 </div>
             </div>
-            <div class="d-flex justify-content-center container mt-5 cookie-popup" v-if="cookieAccepted != 'accepted'">
+            <div class="d-flex justify-content-center container mt-5 cookie-popup cookie-popup-veere" v-if="!cookieAccepted" style="">
                 <div class="row">
                     <div class="col-md-10">
                         <div class="d-flex flex-row justify-content-between align-items-center card cookie p-3">
                             <div class="d-flex flex-row align-items-center">
                                 <div class="ml-2 mr-2">
-                                    <b>Do you like cookies?</b> 🍪 We use cookies to ensure you get the best experience on our website.
+                                    <b>Accept Cookies</b>
                                 </div>
                             </div>
                             <div><button class="btn btn-dark" type="button" @click="saveCookieStatus()">Okay</button></div>
@@ -200,36 +224,39 @@ export default {
                     </div>
                 </div>
             </div>
-        </div>
-        <div v-else class="d-flex justify-content-center container mt-5 cookie-popup " id="customerLocation"  data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="customerLocationTitle" aria-hidden="true">
-            <div class="modal-dialog modal-sm" role="document" style="width: 523px;">
-                <div class="modal-content">
-                    <form >
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="customerLocationTitle">Location</h5>
-                            
-                        </div>
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <input type="text" placeholder="Enter your address" v-model="address" ref="autocomplete"/>
+            <div v-if="showCustomerLocationForm && cookieAccepted == 1" class="d-flex justify-content-center container mt-5 cookie-popup cookie-popup-veere-add" id="customerLocation"  data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="customerLocationTitle" aria-hidden="true">
+                <div class="modal-dialog modal-sm" role="document" style="width: 523px;">
+                    <div class="modal-content">
+                        <form >
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="customerLocationTitle">Location</h5>
                                 
-                                <button type="button" @click="locatorButtonPressed()">Location</button>
                             </div>
-                            <div class="form-group">
-                                <label for="zip-code" >Enter zip code</label>
-                                <input v-model="pincode" id="zip-code" type="number" placeholder="Enter zip code" />
+                            <div class="modal-body">
+                                <div class="form-group" style="border:1px solid black !important; width:100%; line-height: 42px; height: 42px; font-size: 14px;">                                
+                                    <button type="button" @click="locatorButtonPressed()">Location (GPS)</button>
+                                </div>
+                                <div class="form-group" v-if="addresses.length > 0">
+                                    <label for="zip-code" >Address</label>
+                                    <select v-model="selectedAddress" style="border:1px solid black !important; width:100%; line-height: 42px; height: 42px; font-size: 14px;" >
+                                        <option selected value="">Select</option>
+                                        <option  v-for="add in addresses" :key=" 'address-' + add.id" :value="add.postal_code">{{ add.name +', '+ add.address +', ' + add.landmark + ', ' + add.city + ', Pin code ' + add.postal_code }}</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="zip-code" >Enter zip code</label>
+                                    <input v-model="pincode" id="zip-code" type="number" placeholder="Enter zip code" />
+                                </div>
                             </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-primary" @click="checkPincode()"> Submit </button>
-                            <button type="button" class="btn btn-danger" @click="cancelLocation()"> Cancel </button>
-                        </div>
-                    </form>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" @click="checkPincode()"> Submit </button>
+                                <button type="button" class="btn btn-danger" @click="cancelLocation()"> Cancel </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
         
-
     </div>
 </template>
 <style>
@@ -257,5 +284,14 @@ export default {
         text-decoration: none;
         color: blue;
         margin-top: 8px;
+    }
+    .cookie-popup-veere{
+        height: 100%; width: 100%; 
+        text-align: center; 
+        background-color: #9b881c2e;
+    }
+    .cookie-popup-veere-add{
+        height: 100%; width: 100%;         
+        background-color: #9b881c2e;
     }
 </style>

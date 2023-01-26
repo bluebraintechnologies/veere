@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\OtherController;
 use App\Models\TransactionSellLine;
-
+use App\Models\Address;
 class HomeController extends Controller
 {
     public function getFeaturedProducts($location_id = null){
@@ -53,13 +53,14 @@ class HomeController extends Controller
                     DB::raw("(SELECT SUM( COALESCE(pl.quantity - ($pl_query_string), 0) * purchase_price_inc_tax) FROM transactions JOIN purchase_lines AS pl ON transactions.id=pl.transaction_id WHERE transactions.status='received' AND transactions.location_id=vld.location_id  AND (pl.variation_id=variations.id)) as stock_price"),
                   
                     DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -180,14 +181,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -256,14 +257,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -332,14 +333,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -408,14 +409,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -645,14 +646,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -703,14 +704,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -1162,14 +1163,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -1297,14 +1298,14 @@ class HomeController extends Controller
                   WHERE transactions.status='received' AND transactions.location_id=vld.location_id 
                   AND (pl.variation_id=variations.id)) as stock_price"),
                     DB::raw("SUM(vld.qty_available) as stock"),
-                    DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -1333,30 +1334,59 @@ class HomeController extends Controller
         return Business::first();
     }
     public function checkCartItemDeliveribility(Request $request){
+        $location_id = $request->location;
         $request = $request->address;
         $postal_code = $request['postal_code'];
         $not_deliverable = 0;
-        $cart_items = [];
-        $cart = Cart::where('user_id', Auth::user()->id)->pluck('product_id', 'id');
-        foreach($cart as $product){
-            
-            $location = ProductLocation::where('product_id', $product)->pluck('location_id');
-            $business_location = BusinessLocation::where('id', $location)->where('is_active', 1)->first();
-            if($business_location){
-                $outer_pincode = explode(",", $business_location->outer_pincode);
-                $inner_pincode = explode(",", $business_location->inner_pincode);
-                $pincode = array_merge($outer_pincode, $inner_pincode);
-                
-                if(!in_array($postal_code, $pincode)){
-                    $not_deliverable = 1;
-                    $cart_items[$product] = 1;
-                }else{
-                    $cart_items[$product] = 0;
-                }
-            }
+        $business_location = BusinessLocation::where('id', $location_id)->first();
+        $outer_pincode = explode(",", $business_location->outer_pincode);
+        $inner_pincode = explode(",", $business_location->inner_pincode);
+        $pincode = array_merge($outer_pincode, $inner_pincode);
+        if(!in_array($postal_code, $pincode)){
+            $not_deliverable = 1;
         }
-        return ['not_deliverable' => $not_deliverable, 'cart_items' => $cart_items];
+        return ['not_deliverable' => $not_deliverable];
     }
+    public function checkCartItemDeliveribilityFinal(Request $request){
+        $location_id = $request->location;
+        $pin = $request->address;
+        $request = Address::find($pin)->toArray();
+        $postal_code = $request['postal_code'];
+        $not_deliverable = 0;
+        $business_location = BusinessLocation::where('id', $location_id)->first();
+        $outer_pincode = explode(",", $business_location->outer_pincode);
+        $inner_pincode = explode(",", $business_location->inner_pincode);
+        $pincode = array_merge($outer_pincode, $inner_pincode);
+        if(!in_array($postal_code, $pincode)){
+            $not_deliverable = 1;
+        }
+        return ['not_deliverable' => $not_deliverable];
+    }
+    // public function checkCartItemDeliveribility(Request $request){
+    //     $request = $request->address;
+    //     $postal_code = $request['postal_code'];
+    //     $not_deliverable = 0;
+    //     $cart_items = [];
+    //     $cart = Cart::where('user_id', Auth::user()->id)->pluck('product_id', 'id');
+    //     foreach($cart as $product){
+            
+    //         $location = ProductLocation::where('product_id', $product)->pluck('location_id');
+    //         $business_location = BusinessLocation::where('id', $location)->where('is_active', 1)->first();
+    //         if($business_location){
+    //             $outer_pincode = explode(",", $business_location->outer_pincode);
+    //             $inner_pincode = explode(",", $business_location->inner_pincode);
+    //             $pincode = array_merge($outer_pincode, $inner_pincode);
+                
+    //             if(!in_array($postal_code, $pincode)){
+    //                 $not_deliverable = 1;
+    //                 $cart_items[$product] = 1;
+    //             }else{
+    //                 $cart_items[$product] = 0;
+    //             }
+    //         }
+    //     }
+    //     return ['not_deliverable' => $not_deliverable, 'cart_items' => $cart_items];
+    // }
     public function removeShoppingAddress(Request $request){
         Cart::where('user_id', Auth::user()->id)->update(['address_id' => null]);
     }
@@ -1652,6 +1682,7 @@ class HomeController extends Controller
             Cart::where('user_id', $user_id)->update([
                 'billing_address_id' => $address_id
             ]);
+            return ['address' => Address::find($address_id)];
         } else {
             if($request->session()->get('temp_user_id')) {
                 $temp_user_id = $request->session()->get('temp_user_id');
@@ -1710,5 +1741,40 @@ class HomeController extends Controller
             ->where('discount_category', 'veeere')
             ->get();
         return ['offers' => $offers];
+    }
+    public function getStreetAddressFrom(Request $request){
+        // $curl = curl_init();
+        // $latlng = $request->lat.','.$request->long;
+        // $query = 'https://maps.googleapis.com/maps/api/geocode/json?latlng='.$latlng.'&key=AIzaSyB3GgFD8YthniTjvyzOr-b6jw-CftRmy4o';
+        // curl_setopt_array($curl, array(
+        // CURLOPT_URL => $query,
+        // CURLOPT_RETURNTRANSFER => true,
+        // CURLOPT_ENCODING => '',
+        // CURLOPT_MAXREDIRS => 10,
+        // CURLOPT_TIMEOUT => 0,
+        // CURLOPT_FOLLOWLOCATION => true,
+        // CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        // CURLOPT_CUSTOMREQUEST => 'GET',
+        // ));
+
+        // $response = curl_exec($curl);
+        // curl_close($curl);
+        // $data = get_object_vars(json_decode($response));
+        // $result = get_object_vars($data['results'][0]);
+        // foreach($result['address_components'] as $ac){
+        //     $ac = get_object_vars($ac);
+        //     echo '<pre>'; print_r($ac); echo '</pre>';
+        //     if($ac['types'][0] == 'postal_code'){
+        //         echo '<pre>'; print_r($ac['long_name']); echo '</pre>';
+        //     }
+        // }
+        return [ 'postal_code' => 160036];
+    }
+    public function storeAddressInLocalStorage(Request $request){
+        if(Auth::user()){
+            $address = Address::where('user_id', Auth::user()->id)->get()->toArray();
+            return ['address' => $address];
+        }
+        return ['address' => []];
     }
 }

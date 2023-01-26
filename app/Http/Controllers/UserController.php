@@ -315,7 +315,6 @@ class UserController extends Controller
         return Inertia::render('User/RewardPointsUsed', $this->data);
     }
     public function grocerylist(){
-        dd();
         if (Auth::check()) {
             $this->data['isUserLogged'] = 1;
             $this->data['loggedinUserDetail'] = Auth()->user();

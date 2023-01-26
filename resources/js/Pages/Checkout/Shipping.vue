@@ -229,7 +229,10 @@
                                 </div>
                             </div>
                         </div>
-                        <a :href="route('checkout.get_payment')" class="btn btn-primary mt-4" v-if="deliverable && currentShippingAddress >= 1 && currentBillingAddress >= 1 ">
+                        <!-- <a :href="route('checkout.get_payment')" class="btn btn-primary mt-4" v-if="deliverable && currentShippingAddress >= 1 && currentBillingAddress >= 1 ">
+                            Procees To Payment Mode
+                        </a> -->
+                        <a href="javascript:void(0)" @click="checkCartItemIsDeliverable()" class="btn btn-primary mt-4" v-if="currentShippingAddress >= 1 && currentBillingAddress >= 1 ">
                             Procees To Payment Mode
                         </a>
                         <button type="button" class="btn btn-primary mt-4" @click="gotoPayment" v-else>
@@ -344,7 +347,29 @@ export default {
             this.removeCouponCode([this, {code:code}])
         },
         selectShippingAddress(aid) {
-            axios.post('/api/check-cartI-tem-deliveribility', {address : aid}).then((response) => {
+            console.log(aid)
+            console.log(aid.postal_code)
+            var current_location = localStorage.getItem('location')
+            // check for existance of other location item
+            axios.get('/api/check-cart-item-location?location=' + current_location).then((response) => {
+                if(response.data.locationStatus){
+                    console.log('some item belongs to other item')
+                    this.$swal.fire({
+                        title: 'Some item are not deliverable to your location',
+                        text: "Please back to cart",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Ok'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location ="/cart"
+                        }
+                    })
+                }
+            })
+            axios.post('/api/check-cartI-tem-deliveribility', {address : aid, location : current_location}).then((response) => {
                 if(response.data.not_deliverable == 1){
                     this.currentShippingAddress = null
                     this.$toast.warning('Selected address is not serviceable. Please change the delivery address.');
@@ -354,6 +379,18 @@ export default {
                     this.currentShippingAddress = aid.id
                     axios.post('/api/cart/update-address', {address_id:aid.id})
                     this.showShippingError = false
+                }
+            })
+        },
+        checkCartItemIsDeliverable(){
+            var current_location = localStorage.getItem('location')
+            axios.post('/api/check-cartI-tem-deliveribility-final', {address : this.currentShippingAddress, location : current_location}).then((response) => {
+                if(response.data.not_deliverable == 1){
+                    this.currentShippingAddress = null
+                    this.$toast.warning('Selected address is not serviceable. Please change the delivery address.');
+                    axios.post('/api/remove-shopping-address')
+                }else{
+                    window.location ="/checkout/payment"
                 }
             })
         },
@@ -443,7 +480,7 @@ export default {
         }
     },
     mounted() {
-        this.checkCartItemDeliveribility()
+        // this.checkCartItemDeliveribility()
         if(typeof this.set_default != 'undefined' || this.set_default != null ){
             if(this.defaultShipping){
                 axios.post('/api/check-cartI-tem-deliveribility', {address : this.defaultShipping }).then((response) => {
@@ -459,7 +496,9 @@ export default {
         }
         if(typeof this.set_default_billing != 'undefined' || this.set_default_billing != null ){
             this.currentBillingAddress = this.set_default
-            axios.post('/api/add-billing-address-to-cart-item/'+this.currentBillingAddress)
+            axios.post('/api/add-billing-address-to-cart-item/'+this.currentBillingAddress).then((response) => {
+                
+            })
         }
     },
     created(){

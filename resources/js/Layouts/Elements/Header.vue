@@ -71,6 +71,17 @@
                                         <span class="ec-cart-count">{{cartQuantity}} ITEMS</span>
                                     </span>
                                 </a>
+                                <a href="javascript:;" @click="showAddressForm()" class="ec-header-btn ec-side-toggle">
+                                    <!-- <div class="header-icon">
+                                        <img :src="$site_url+'/images/icons/cart.svg'" class="svg_img header_svg" alt="" />
+                                    </div> -->
+                                    <span class="ec-cart-title fs-11">
+                                        <span class="text-muted d-block">Location</span>
+                                        <!-- <span class="ec-cart-count" v-if="currentLocation">Location :{{currentLocation}} </span> -->
+                                        <span class="ec-cart-count" v-if="currentPincode">Pincode : {{currentPincode}} </span>
+                                        <!-- <span class="ec-cart-count" v-if="currentAddress">Add : {{currentAddress}} </span> -->
+                                    </span>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -109,7 +120,7 @@
                         <img class="dark-logo" :src="$site_url+'/images/logo.png'" alt="Veeere" style="display: none;" />
                     </a>
                 </span>
-                <button class="ec-close"  @click="$emit('show-mobilemenu')">×</button>
+                <button class="ec-close"  @click="$emit('show-mobilemenu')">ï¿½</button>
             </div>
             <div class="ec-menu-inner">
                 <div class="ec-menu-content">
@@ -184,6 +195,13 @@ export default {
     props:{
         showNavigation: [Boolean],
     },
+    data(){
+        return {
+            currentAddress:'',
+            currentLocation:'',
+            currentPincode:'',
+        }
+    },
     emits:[
         'show-sidecart'
     ],
@@ -201,11 +219,13 @@ export default {
             }else{
                 return ''
             }
-        }
-        
+        }        
     },
     methods:{
-        ...mapActions(['getUserRewardPointsEarned', 'getUserRewardPointsOntheway']),
+        ...mapActions(['getUserRewardPointsEarned', 'getUserRewardPointsOntheway']),        
+        showAddressForm(){
+            this.$store.commit('PINCODE_FORM', true)
+        }
 
     },
     mounted(){
@@ -214,6 +234,21 @@ export default {
     },
     created(){
         // console.log('attr', this.$attrs.auth)
+        if(localStorage.getItem('location')){
+            this.currentLocation = localStorage.getItem('location')
+        }
+        if(localStorage.getItem('temp_location')){
+            this.currentLocation = localStorage.getItem('temp_location')
+        }
+        if(localStorage.getItem('pincode')){
+            this.currentPincode = localStorage.getItem('pincode')
+        }
+        if(localStorage.getItem('temp_pincode')){
+            this.currentPincode = localStorage.getItem('temp_pincode')
+        }
+        if(localStorage.getItem('address')){
+            this.currentAddress = localStorage.getItem('address')
+        }
     }
 };
 </script>

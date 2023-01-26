@@ -49,8 +49,7 @@ export default {
                 location = localStorage.getItem("location")
                 this.addCartItem([this, cid]);
             }else{
-                // this.showCustomerLocationFormA = true
-                this.$store.commit('PINCODE_FORM', false)
+                this.$store.commit('PINCODE_FORM', true)
             }
         },
         decreaseInCartItem(cid) {

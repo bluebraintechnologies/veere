@@ -55,7 +55,8 @@
                                             <div class="col-lg-12">
                                                 <div class="ec-cart-update-bottom">
                                                     <Link :href="route('home')">Continue Shopping</Link>
-                                                    <Link v-if="cartQuantity >= 1" :href="route('checkout')" as="button" class="btn btn-primary">Checkout</Link>
+                                                    <!-- <Link v-if="cartQuantity >= 1" :href="route('checkout')" as="button" class="btn btn-primary">Checkout</Link> -->
+                                                    <button type="button" v-if="cartQuantity >= 1" class="btn btn-primary" @click="checkCartItemLocation()">Checkout</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -131,7 +132,8 @@
     import { mapGetters, mapActions } from 'vuex';
     import Price from '@/Pages/Product/Elemants/Price.vue';
     import CartItem from './Includes/CartItem.vue';
-    
+    import { Inertia } from '@inertiajs/inertia';
+
 export default {
     emits: ["closeSidebar"],
     data() {
@@ -169,6 +171,40 @@ export default {
     },
     methods: {
         ...mapActions(['addCouponCode', 'removeCouponCode', 'updateCartAddress', 'updateCartBillingAddress', 'updateDeliveryTiming']),
+        checkCartItemLocation(){
+            let location;
+            if(localStorage.getItem("location")){
+                location = localStorage.getItem("location")
+            }else if(localStorage.getItem("temp_location")){
+                location = localStorage.getItem("temp_location")
+            }
+            axios.get('/api/check-cart-item-location?location=' + location).then((response) => {
+                if(response.data.locationStatus){
+                    console.log('some item belongs to other item')
+                    this.$swal.fire({
+                        title: 'Some item are not deliverable to your location',
+                        text: "Please delete them",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, delete them!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            axios.get('/api/delete-other-location-items?location='+ location ).then((response) => {
+                                // location.reload()Inertia.reload()
+                                this.reloadLocation()
+                            })
+                        }
+                    })
+                }else{
+                    window.location ="/checkout"
+                }
+            })
+        },
+        reloadLocation(){
+            location.reload()
+        }
     },
 };
 </script>

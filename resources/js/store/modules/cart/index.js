@@ -16,7 +16,12 @@ const actions = {
         });
     },
     addCartItem({ commit }, [vm, cartItem]) {
-        let location = localStorage.getItem("location")
+        let location = 1;
+        if(localStorage.getItem("location")){
+            location = localStorage.getItem("location")
+        }else if(localStorage.getItem("temp_location")){
+            location = localStorage.getItem("temp_location")
+        }
         axios.post('/api/cart?location=' + location, cartItem).then((response) => {
             if(response.data.status == 'failed') {
                 vm.$toast.info(response.data.message);                
@@ -36,7 +41,12 @@ const actions = {
         });
     },
     decreaseCartItem({ commit }, [vm, cartItem]) {
-        let location = localStorage.getItem("location")
+        let location = 1
+        if(localStorage.getItem("location")){
+            location = localStorage.getItem("location")
+        }else if(localStorage.getItem("temp_location")){
+            location = localStorage.getItem("temp_location")
+        }
         axios.put('/api/cart/'+cartItem + '?location=' + location).then((response) => {
             if(response.data.status == 'failed') {
                 vm.$toast.info(response.data.message);

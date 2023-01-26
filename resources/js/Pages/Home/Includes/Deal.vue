@@ -35,10 +35,8 @@ export default {
     },
     methods: {
         getTodayDeals(){
-            let location
-            if(localStorage.getItem("temp_location")){
-                location = localStorage.getItem("temp_location")
-            }else if(localStorage.getItem("location")){
+            let location = 1
+            if(localStorage.getItem("location")){
                 location = localStorage.getItem("location")
             }
             axios.get('/api/get-today-deals?location=' +location ).then((response) => {

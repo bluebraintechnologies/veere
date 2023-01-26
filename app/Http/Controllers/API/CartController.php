@@ -205,7 +205,7 @@ class CartController extends Controller
         $tax = $product['tax'];
         $itemTax = $data['price']*$tax/(100+$tax);
         $data['tax'] = intval($itemTax*100)/100;
-       
+        $data['location_id'] = $location_id;
         if($carts && count($carts) > 0){
             $foundInCart = false;
 
@@ -558,13 +558,14 @@ class CartController extends Controller
         $products = $query->select(
                     DB::raw("(SELECT SUM( COALESCE(pl.quantity - ($pl_query_string), 0) * purchase_price_inc_tax) FROM transactions JOIN purchase_lines AS pl ON transactions.id=pl.transaction_id WHERE transactions.status='received' AND transactions.location_id=vld.location_id AND (pl.variation_id=variations.id)) as stock_price"),                    
                     DB::raw("SUM(vld.qty_available) as stock"),
+                    DB::raw("SUM(vld.mrp) as unit_price"),
                         'variations.sub_sku as sku',
                         'p.name as product',
                         'p.type',
                         'p.id as product_id',
                         'units.short_name as unit',
                         'p.enable_stock as enable_stock',
-                        'variations.sell_price_inc_tax as unit_price',
+                        // 'variations.sell_price_inc_tax as unit_price',
                         'pv.name as product_variation',
                         'variations.name as variation_name',
                         'l.name as location_name',
@@ -618,7 +619,7 @@ class CartController extends Controller
             $carts = Cart::where('user_id', $user_id)->get();
         } else {
             $temp_user_id = $request->session()->get('temp_user_id');
-            Cart::where('user_id', $user_id)->update(['address_id' => $request->address_id]);
+            Cart::where('temp_user_id', $temp_user_id)->update(['address_id' => $request->address_id]);
             $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
 
@@ -632,7 +633,7 @@ class CartController extends Controller
             $carts = Cart::where('user_id', $user_id)->get();
         } else {
             $temp_user_id = $request->session()->get('temp_user_id');
-            Cart::where('user_id', $user_id)->update(['billing_address_id' => $request->address_id]);
+            Cart::where('temp_user_id', $temp_user_id)->update(['billing_address_id' => $request->address_id]);
             $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
 
@@ -646,7 +647,7 @@ class CartController extends Controller
             $carts = Cart::where('user_id', $user_id)->get();
         } else {
             $temp_user_id = $request->session()->get('temp_user_id');
-            Cart::where('user_id', $user_id)->update(['delivery_time' => $request->timing]);
+            Cart::where('temp_user_id', $temp_user_id)->update(['delivery_time' => $request->timing]);
             $carts = Cart::where('temp_user_id', $temp_user_id)->get();
         }
 
@@ -656,5 +657,39 @@ class CartController extends Controller
         Cart::where('user_id', Auth::user()->id)->update(['pay_reward_points' => $request->pay_reward_points]);
         $items = Cart::where('user_id', Auth::user()->id)->get();
         return ['status' => true, 'message' => 'Order amount has been modified', 'items' => $items];
+    }
+    public function checkCartItemLocation(Request $request){
+        
+        $location_id = $request->location;
+        if(auth()->user() != null) {
+            $carts = Cart::where('user_id', Auth::user()->id)->get();
+            $locationStatus = 0;
+            foreach($carts as $cart){
+                if($cart->location_id != $location_id){
+                    $locationStatus = 1; break;
+                }
+            }
+        }else{
+            $temp_user_id = $request->session()->get('temp_user_id');
+            $carts = Cart::where('temp_user_id', $temp_user_id)->get();
+            $locationStatus = 0;
+            foreach($carts as $cart){
+                if($cart->location_id != $location_id){
+                    $locationStatus = 1; break;
+                }
+            }
+        }
+        return ['locationStatus' => $locationStatus];
+    }
+    public function deleteOtherLocationItems(Request $request){
+        $location_id = $request->location;
+        $carts = Cart::where('user_id', Auth::user()->id)->get();
+        $locationStatus = 0;
+        foreach($carts as $cart){
+            if($cart->location_id != $location_id){
+                Cart::where('id', $cart->id)->delete();
+            }
+        }
+        return [];
     }
 }

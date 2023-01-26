@@ -34,7 +34,7 @@
                 sliders: [],
                 pbanner1_detail:'',
                 pbanner2_detail:'',
-                home_offer:'',
+                home_offer:[],
             };
         },
         props: {
@@ -57,11 +57,9 @@
                 this.sideCartStatus = !this.sideCartStatus;
             },
             getFeaturedProducts(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.post('/api/get-featured-products/'+ location).then((response) => {
                     this.featured_category = response.data.featured_category
@@ -69,22 +67,18 @@
                 })                
             },
             getBestSellerProducts(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.post('/api/get-best-seller-product-mul-location/'+ location).then((response) => {
                     this.best_sellers = response.data.best_sellers
                 })
             },
             getTopSellingProducts(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.post('/api/get-top-selling-product-mul-location/'+ location).then((response) => {
                     this.top_selling = response.data.top_selling
@@ -93,11 +87,9 @@
             }
             ,
             getTopRatedgProducts(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.post('/api/get-top-rated-product-mul-location/'+ location).then((response) => {
                     this.top_rated = response.data.top_rated
@@ -105,11 +97,9 @@
                 //top_rated
             },
             getNewArrivalProducts(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.post('/api/get-new-arrival-product-mul-location/'+ location).then((response) => {
                     this.new_arrivals = response.data.new_arrivals
@@ -117,44 +107,36 @@
                 //new_arrivals
             },
             getSliders(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.get('/api/get-sliders-mul-location?location=' + location).then((response) => {
                     this.sliders = response.data.sliders
                 })
             },
             getTopBanner(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.get('/api/get-top-banner-mul-location?location=' + location).then((response) => {
                     this.pbanner1_detail = response.data.pbanner1_detail
                 })
             },
             getBottomBanner(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.get('/api/get-bottom-banner-mul-location?location=' + location).then((response) => {
                     this.pbanner2_detail = response.data.pbanner2_detail
                 })
             },
             getHomeOffer(){
-                let location
+                let location = 1
                 if(localStorage.getItem("location")){
                     location = localStorage.getItem("location")
-                }else if(localStorage.getItem("temp_location")){
-                    location = localStorage.getItem("temp_location")
                 }
                 axios.get('/api/get-home-offers-mul-location?location=' + location).then((response) => {
                     this.home_offer = response.data.home_offer
@@ -162,15 +144,15 @@
             }
         },
         created(){
-            this.getHomeOffer()
-            this.getTopBanner()
-            this.getBottomBanner()
             this.getSliders()
+            this.getTopBanner()
             this.getFeaturedProducts()
             this.getBestSellerProducts()
             this.getTopSellingProducts()
             this.getTopRatedgProducts()
             this.getNewArrivalProducts()
+            this.getHomeOffer()
+            this.getBottomBanner()
         }
     };
 </script>
@@ -190,7 +172,7 @@
                     <ProductsGroup  :top-selling="top_selling" :top-rated="top_rated" :best-sellers="best_sellers" :new-arrivals="new_arrivals" />
                 </div>
             </section>
-            <Banners :banners="home_offer"/>
+            <Banners v-if="home_offer.length > 0" :banners="home_offer"/>
             
             <Offers :pdetails="pbanner2_detail" v-if="pbanner2_detail && pbanner2_detail.status"/>
             <!-- <Blogs /> -->
